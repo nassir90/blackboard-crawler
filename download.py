@@ -237,7 +237,6 @@ async def main():
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hHw:", ["help", "headless", "wget-path"])
     except Exception:
-        print("Niggas is failin n sheit")
         pass
 
     headless = False
