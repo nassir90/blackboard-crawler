@@ -230,7 +230,7 @@ async def download(url: str, cookies: list, level: str):
     global current_output_dir
     olddir = os.getcwd()
     os.chdir(current_output_dir)
-    #call(wget_path + " --no-clobber --relative --trust-server-names --no-verbose --quiet --show-progress --progress=bar:force --timeout=5 --header 'Cookie: s_session_id=%s'" % s_session_id + " '%s' 2>>errors" % url, shell=True)
+    call(wget_path + " --no-clobber --relative --trust-server-names --no-verbose --quiet --show-progress --progress=bar:force --timeout=5 --header 'Cookie: s_session_id=%s'" % s_session_id + " '%s' 2>>errors" % url, shell=True)
     os.chdir(olddir)
 
 async def main():
