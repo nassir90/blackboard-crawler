@@ -1,0 +1,2 @@
+ffmpeg_python==0.2.0
+pyppeteer==0.2.6
