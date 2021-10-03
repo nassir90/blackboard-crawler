@@ -45,7 +45,7 @@ async def try_login(browser: Browser, page: Page):
     cookies = await page.cookies()
 
     for cookie in cookies:
-        if cookie.get('name') in ('shib_idp_session', 'JSESSIONID'):
+        if cookie.get('name') in ('shib_idp_session', 's_session_id'):
             is_logged_in = True
     
     if not is_logged_in:
@@ -67,7 +67,7 @@ async def logged_in(browser: Browser, page: Page):
 
     await page.waitForSelector(MODULE_LINK)
     for module_index in range(len(await page.JJ(MODULE_LINK))):
-        await download_module(module_index, page, browser)
+        await download_module(module_index, page)
         await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
 
 
@@ -82,7 +82,7 @@ PANOPTO_CONTENT = "a.detail-title"
 agreed = False
 current_output_dir = ""
 
-async def download_module(index: int, page: Page, browser: Browser):
+async def download_module(index: int, page: Page):
     global agreed
     if (not agreed):
         await page.waitForSelector("#agree_button", timeout=3000)
@@ -102,24 +102,24 @@ async def download_module(index: int, page: Page, browser: Browser):
 
     module_root = page.url
     for submodule_index in range(len(await page.JJ(SUBMODULE_LINK))):
-        await traverse_submodule(submodule_index, page, browser)
+        await traverse_submodule(submodule_index, page)
         await page.goto(module_root)
 
-async def traverse_submodule(submodule_index: int, page: Page, browser: Browser):
+async def traverse_submodule(submodule_index: int, page: Page):
     submodule_link, submodule_text = await page.JJeval(SUBMODULE_LINK, "(links, submodule_index) => [links[submodule_index].href, links[submodule_index].innerText]", submodule_index)
     await page.goto(submodule_link)
     
     print(" Traversing submodule #" + str(submodule_index) + " :" + submodule_text)
     
-    await download_content(page, browser, "  ")
+    await download_content(page, "  ")
 
-async def download_content(page: Page, browser: Browser, level: str):
+async def download_content(page: Page, level: str):
     try:
-        await page.waitForSelector(CONTENT, timeout=500)
+        await page.waitForSelector(CONTENT, timeout=5000)
         await download_list_content(page, level)
         return
-    except Exception:
-        pass
+    except Exception as e:
+        print (e)
 
 #   Panopt video downloading not currently functional
 #
@@ -148,13 +148,19 @@ async def download_list_content(page: Page, level: str):
                 await download(link, await page.cookies(), level)
 
         header_link = await content.J("h3 a")
+        await content.hover()
+        await page.waitFor(3000)
         if header_link:
             link = await page.evaluate('header_link => header_link.href', header_link)
             if "webapp" not in link:
                 await download(link, await page.cookies(), level)
-            else:
-                print(level + "Descending into : " + link)
-                await download_content(link, page, level + " ")
+            elif link not in page.url:
+                print(level + "Descending into : ")
+                print(level + "├" + link)
+                print(level + "From : ")
+                print(level + "└" page.url)
+                await page.goto(link)
+                await download_content(page, level + " ")
                 await page.goto(content_root)
 
 async def download_panopto_content(frame: Frame, page: Page, level: str):
@@ -224,7 +230,7 @@ async def download(url: str, cookies: list, level: str):
     global current_output_dir
     olddir = os.getcwd()
     os.chdir(current_output_dir)
-    call(wget_path + " --no-clobber --relative --trust-server-names --no-verbose --quiet --show-progress --progress=bar:force --timeout=5 --header 'Cookie: s_session_id=%s'" % s_session_id + " '%s' 2>>errors" % url, shell=True)
+    #call(wget_path + " --no-clobber --relative --trust-server-names --no-verbose --quiet --show-progress --progress=bar:force --timeout=5 --header 'Cookie: s_session_id=%s'" % s_session_id + " '%s' 2>>errors" % url, shell=True)
     os.chdir(olddir)
 
 async def main():
