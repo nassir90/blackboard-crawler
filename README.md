@@ -1,5 +1,6 @@
 ## Credits
-The login phase, and the panopt video downloading code are not my own work.
+The login phase, and the panopto video downloading code are not my own work.
+These parts were done by
 
 ## Requirements
 
