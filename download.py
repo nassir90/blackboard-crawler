@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 import getpass
 import os
 import os.path
@@ -7,7 +8,6 @@ import pyppeteer
 from pyppeteer import launch
 from pyppeteer.browser import Browser
 from pyppeteer.network_manager import Response
-from pyppeteer.frame_manager import Frame
 from pyppeteer.page import Page
 import urllib.request
 import urllib.parse
@@ -63,6 +63,9 @@ async def try_login(browser: Browser, page: Page):
         await logged_in(browser, page)
 
 async def logged_in(browser: Browser, page: Page):
+    await page.goto("https://tcd.cloud.panopto.eu/Panopto/Pages/Home.aspx?instance=blackboard")
+    await page.waitFor(5000)
+    print (page.url)
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
 
     await page.waitForSelector(MODULE_LINK)
@@ -93,7 +96,11 @@ async def download_module(index: int, page: Page):
     module_link, module_text = await page.JJeval(MODULE_LINK, "(links, index) => [links[index].href, links[index].innerText]", index)
     await page.goto(module_link)
 
-    print("Traversing module #" + str(index) + " : " + module_text)
+    if ("Elec" in module_text):
+        print("Traversing module #%d : %s" % (index, module_text))
+    else:
+        print("Not traversing module #%d : %s" % (index, module_text))
+        return
 
     global current_output_dir
     current_output_dir = "downloads/" + module_text + "/"
@@ -115,22 +122,33 @@ async def traverse_submodule(submodule_index: int, page: Page):
 
 async def download_content(page: Page, level: str):
     try:
-        await page.waitForSelector(CONTENT, timeout=5000)
+        await page.waitForSelector(CONTENT, timeout=1000)
         await download_list_content(page, level)
         return
-    except Exception as e:
-        print (e)
+    except Exception:
+        pass
 
-#   Panopt video downloading not currently functional
-#
-#   try:
-#       await page.waitForSelector("iframe", timeout=500)
-#       iframe = await page.J("iframe")
-#       source = await page.evaluate("iframe => iframe.src", iframe)
-#       if "panopto" in source:
-#           await download_panopto_content(await iframe.contentFrame(), page, level)
-#   except Exception:
-#       pass
+    try:
+        await page.waitForSelector("iframe", timeout=1000)
+    except Exception:
+        print("Bruh")
+        return
+
+    iframe = await page.J("iframe")
+    source = await page.evaluate("iframe => iframe.src", iframe)
+    if "panopto" in source:
+        print("Let's see if this '%s' is all it's cracked up to be" % source)
+        # I can open it in chromium
+        # I can open it in brave
+        # I can even open it elsewhere in this script
+        # But for some god forsaken reason
+        # I can not open it in here
+        # Why?
+        folder_id = re.search("folderID=[^&]*", source).group(0)
+        url = 'https://tcd.cloud.panopto.eu/Panopto/Pages/Sessions/List.aspx?instance=blackboard#' + folder_id
+        print(url)
+        await page.goto("https://tcd.cloud.panopto.eu/Panopto/Pages/Home.aspx")
+        await traverse_panopto_page(page, level)
 
     print(level + "Not panopto content OR list content")
 
@@ -149,35 +167,39 @@ async def download_list_content(page: Page, level: str):
 
         header_link = await content.J("h3 a")
         await content.hover()
-        await page.waitFor(3000)
         if header_link:
-            link = await page.evaluate('header_link => header_link.href', header_link)
+            link, link_text = await page.evaluate('header_link => [header_link.href, header_link.innerText]', header_link)
             if "webapp" not in link:
                 await download(link, await page.cookies(), level)
             elif link not in page.url:
-                print(level + "Descending into : ")
-                print(level + "├" + link)
-                print(level + "From : ")
-                print(level + "└" + page.url)
+                print(level + "Descending into : '%s'" % link_text)
                 await page.goto(link)
                 await download_content(page, level + " ")
                 await page.goto(content_root)
 
-async def download_panopto_content(frame: Frame, page: Page, level: str):
-    await frame.waitForSelector(PANOPTO_CONTENT, timeout=5000)
-    for link in await frame.JJ(PANOPTO_CONTENT):
-        href = await frame.evaluate("link => link.href", link)
-        if "instance=blackboard" not in href:
-            href += "&instance=blackboard" 
-        await page.goto(href)
+async def traverse_panopto_page(page: Page, level: str):
+    await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
+    for link_element in await page.JJ(PANOPTO_CONTENT):
+        link = await page.evaluate("link => link.href", link_element)
+        if (link):
+            await download_panopto_video(link, page)
 
-        async def on_res(response: Response):
-            if response.url == 'https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx':
-                await got_stream_data((await response.json())['Delivery']['Streams'][0]['StreamUrl'])
+async def download_panopto_video(link: str, page: Page):
+    async def on_res(response: Response):
+        if response.url == 'https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx':
+            await got_stream_data((await response.json())['Delivery']['Streams'][0]['StreamUrl'])
 
-        page.on('response', lambda res: asyncio.ensure_future(on_res(res)))
-        await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
-        await page.waitFor(500)
+    page.on('response', lambda res: asyncio.ensure_future(on_res(res)))
+
+    if "instance=blackboard" not in link:
+        link += "&instance=blackboard" 
+
+    print(link)
+
+    await page.goto(link)
+
+    await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
+    await page.waitFor(500)
         
 async def got_stream_data(stream_url: str):
     master_response = urllib.request.urlopen(stream_url)
@@ -231,7 +253,7 @@ async def download(url: str, cookies: list, level: str):
     global current_output_dir
     olddir = os.getcwd()
     os.chdir(current_output_dir)
-    call(wget_path + " --no-clobber --relative --trust-server-names --no-verbose --quiet --show-progress --progress=bar:force --timeout=5 --header 'Cookie: s_session_id=%s'" % s_session_id + " '%s' 2>>errors" % url, shell=True)
+    #call(wget_path + " --no-clobber --relative --trust-server-names --no-verbose --quiet --show-progress --progress=bar:force --timeout=5 --header 'Cookie: s_session_id=%s'" % s_session_id + " '%s' 2>>errors" % url, shell=True)
     os.chdir(olddir)
 
 async def main():
