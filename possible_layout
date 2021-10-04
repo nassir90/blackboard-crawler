@@ -1,0 +1,29 @@
+#1 crawl.py "Produces a 'crawlfile' containing all the files that are to be downloaded"
+#2 prompt.py "Asks the user which crawlfile entries they want to download"
+#3 download.py "Downloads files as normal"
+
+crawlfile
+
+FILE ::= file "link" "name"?
+CONTENT ::=
+	( list_content "link" "name"? \
+		FILE \
+		CONTENT* |
+		panopt_content "link" "name"? )
+	endcontent
+
+MODULE ::=
+	module "link" "name"? \
+		CONTENT* \
+	endmodule
+
+Select Modules To Download, or specify which submodules to download
+[ ] Electronics
+[ ] Programming
+
+Specify submodules of 'Electronics'
+
+[ ] Announcements
+[ ] Video lecutres
+
+.etc
