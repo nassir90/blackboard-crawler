@@ -13,7 +13,6 @@ import urllib.request
 import urllib.parse
 import re
 import ffmpeg
-from subprocess import call
 import getopt
 
 pyppeteer.DEBUG = True  
@@ -69,11 +68,13 @@ async def logged_in(browser: Browser, page: Page):
     await page.waitFor(5000)
     print (page.url)
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
-
+    
+    root_dir = os.getcwd()
     await page.waitForSelector(MODULE_LINK)
     for module_index in range(len(await page.JJ(MODULE_LINK))):
         await download_module(module_index, page)
         await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
+        os.chdir(root_dir)
 
 
 MODULE_LINK = ".courseListing > li > a"
@@ -98,14 +99,10 @@ async def download_module(index: int, page: Page):
     module_link, module_text = await page.JJeval(MODULE_LINK, "(links, index) => [links[index].href, links[index].innerText]", index)
     await page.goto(module_link)
 
-    if ("Elec" in module_text):
-        print("Traversing module #%d : %s" % (index, module_text))
-    else:
-        print("Not traversing module #%d : %s" % (index, module_text))
-        return
+    print("Traversing module #%d : %s" % (index, module_text))
 
     global current_output_dir
-    current_output_dir = "downloads/" + module_text + "/"
+    current_output_dir = os.getcwd() + "/downloads/" + module_text + "/"
     if not os.path.isdir(current_output_dir):
         os.mkdir(current_output_dir)
 
@@ -125,10 +122,10 @@ async def traverse_submodule(submodule_index: int, page: Page):
 async def download_content(page: Page, level: str):
     try:
         await page.waitForSelector(CONTENT, timeout=1000)
-#       await download_list_content(page, level)
+        await download_list_content(page, level)
         return
-    except Exception:
-        pass
+    except Exception as e:
+        print(level + str(e))
 
     try:
         await page.waitForSelector("iframe", timeout=1000)
@@ -139,8 +136,7 @@ async def download_content(page: Page, level: str):
             await traverse_panopto_page(page, level)
             return
     except Exception as e:
-        print (str(e))
-        pass
+        print (level + str(e))
 
     print(level + "Not panopto content OR list content")
 
@@ -237,8 +233,6 @@ async def got_stream_data(stream_url: str):
     except Exception:
         pass
 
-wget_path = "wget"
-
 async def download(url: str, cookies: list, level: str):
     print(level + "Downloading : " + url)
 
@@ -247,7 +241,20 @@ async def download(url: str, cookies: list, level: str):
     global current_output_dir
     olddir = os.getcwd()
     os.chdir(current_output_dir)
-    #call(wget_path + " --no-clobber --relative --trust-server-names --no-verbose --quiet --show-progress --progress=bar:force --timeout=5 --header 'Cookie: s_session_id=%s'" % s_session_id + " '%s' 2>>errors" % url, shell=True)
+    request = urllib.request.Request(url)
+    request.add_header("Cookie", "s_session_id="+s_session_id)
+    response = urllib.request.urlopen(request)
+    output_file_path = os.path.basename(response.url)
+    temp_file_path = output_file_path + ".uncompleted-write"
+    if not os.path.isfile(output_file_path):
+        print(level + "└" + output_file_path + " does not exist. Downloading...")
+        data = response.read()
+        temp_file = open(temp_file_path, "wb")
+        temp_file.write(data)
+        temp_file.close()
+        os.rename(temp_file_path, output_file_path)
+    else:
+        print(level + "└" + output_file_path + " exists. Not downloading!")
     os.chdir(olddir)
 
 async def main():
