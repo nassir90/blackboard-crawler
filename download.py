@@ -16,6 +16,8 @@ import ffmpeg
 from subprocess import call
 import getopt
 
+pyppeteer.DEBUG = True  
+
 failed_attempts = 0
 
 async def try_login(browser: Browser, page: Page):
@@ -123,32 +125,22 @@ async def traverse_submodule(submodule_index: int, page: Page):
 async def download_content(page: Page, level: str):
     try:
         await page.waitForSelector(CONTENT, timeout=1000)
-        await download_list_content(page, level)
+#       await download_list_content(page, level)
         return
     except Exception:
         pass
 
     try:
         await page.waitForSelector("iframe", timeout=1000)
-    except Exception:
-        print("Bruh")
-        return
-
-    iframe = await page.J("iframe")
-    source = await page.evaluate("iframe => iframe.src", iframe)
-    if "panopto" in source:
-        print("Let's see if this '%s' is all it's cracked up to be" % source)
-        # I can open it in chromium
-        # I can open it in brave
-        # I can even open it elsewhere in this script
-        # But for some god forsaken reason
-        # I can not open it in here
-        # Why?
-        folder_id = re.search("folderID=[^&]*", source).group(0)
-        url = 'https://tcd.cloud.panopto.eu/Panopto/Pages/Sessions/List.aspx?instance=blackboard#' + folder_id
-        print(url)
-        await page.goto("https://tcd.cloud.panopto.eu/Panopto/Pages/Home.aspx")
-        await traverse_panopto_page(page, level)
+        iframe = await page.J("iframe")
+        source = await page.evaluate("iframe => iframe.src", iframe)
+        if "panopto" in source:
+            await page.goto(source)
+            await traverse_panopto_page(page, level)
+            return
+    except Exception as e:
+        print (str(e))
+        pass
 
     print(level + "Not panopto content OR list content")
 
@@ -179,6 +171,7 @@ async def download_list_content(page: Page, level: str):
 
 async def traverse_panopto_page(page: Page, level: str):
     await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
+    await page.waitFor(3000)
     for link_element in await page.JJ(PANOPTO_CONTENT):
         link = await page.evaluate("link => link.href", link_element)
         if (link):
@@ -194,8 +187,6 @@ async def download_panopto_video(link: str, page: Page):
     if "instance=blackboard" not in link:
         link += "&instance=blackboard" 
 
-    print(link)
-
     await page.goto(link)
 
     await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
@@ -206,7 +197,9 @@ async def got_stream_data(stream_url: str):
     master_data = master_response.read()
     master = master_data.decode('utf-8')
 
-    url = re.sub(r"master\.m3u8.*", "", stream_url) + text.splitlines()[3]
+    first_master_entry = re.findall(r"\d+/index\.m3u8", master, re.MULTILINE)[0]
+
+    url = re.sub(r"master\.m3u8.*", "", stream_url) + first_master_entry
     index_response = urllib.request.urlopen(url)
     index_data = index_response.read()
     index = index_data.decode('utf-8')
@@ -228,10 +221,11 @@ async def got_stream_data(stream_url: str):
     ts_files = re.sub(r"#.*\n", "", index).splitlines()
     total_parts = int(re.sub(".ts", "", ts_files[-1]))
     for ts_file in ts_files:
-        print('Downloading part ' + str(int(re.sub(".ts", "", ts_file))) + ' / ' + str(total_parts))
-        part_url = re.sub(r"master\.m3u8.*", "", stream_url) + master.splitlines()[3].split('/')[0] + '/' + ts_file
-        part_response = urllib.request.urlopen(part_url)
-        output_ts.write(part_response.read())
+        if ts_file:
+            print('Downloading part ' + str(int(re.sub("\.ts", "", ts_file))) + ' / ' + str(total_parts))
+            part_url = re.sub(r"master\.m3u8.*", "", stream_url) + first_master_entry.split('/')[0] + '/' + ts_file
+            part_response = urllib.request.urlopen(part_url)
+            output_ts.write(part_response.read())
 
     output_ts.close()
     stream = ffmpeg.input(ts)
