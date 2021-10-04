@@ -158,7 +158,7 @@ async def download_list_content(page: Page, level: str):
                 print(level + "Descending into : ")
                 print(level + "├" + link)
                 print(level + "From : ")
-                print(level + "└" page.url)
+                print(level + "└" + page.url)
                 await page.goto(link)
                 await download_content(page, level + " ")
                 await page.goto(content_root)
@@ -180,14 +180,14 @@ async def download_panopto_content(frame: Frame, page: Page, level: str):
         await page.waitFor(500)
         
 async def got_stream_data(stream_url: str):
-    response = urllib.request.urlopen(stream_url)
-    data = response.read()
-    text = data.decode('utf-8')
+    master_response = urllib.request.urlopen(stream_url)
+    master_data = master_response.read()
+    master = master_data.decode('utf-8')
 
     url = re.sub(r"master\.m3u8.*", "", stream_url) + text.splitlines()[3]
-    response2 = urllib.request.urlopen(url)
-    data2 = response2.read()
-    text2 = data2.decode('utf-8')
+    index_response = urllib.request.urlopen(url)
+    index_data = index_response.read()
+    index = index_data.decode('utf-8')
 
     ts = current_output_dir + "download.ts"
     mp4 = current_output_dir + "download.mp4"
@@ -202,15 +202,16 @@ async def got_stream_data(stream_url: str):
     except Exception:
         pass
 
-    file_str = open(ts, 'wb')
-    for file in re.sub(r"#.*\n", "", text2).splitlines():
-        print('Downloading part ' + str(list(map(int, re.findall(r'\d+', file)))[0]) + ' / ' + str(list(map(int, re.findall(r'\d+', re.sub(r"#.*\n", "", text2).splitlines()[-1])))[0]))
-        url2 = re.sub(r"master\.m3u8.*", "", stream_url) + text.splitlines()[3].split('/')[0] + '/' + file
-        response3 = urllib.request.urlopen(url2)
-        
-        file_str.write(response3.read())
+    output_ts = open(ts, 'wb')
+    ts_files = re.sub(r"#.*\n", "", index).splitlines()
+    total_parts = int(re.sub(".ts", "", ts_files[-1]))
+    for ts_file in ts_files:
+        print('Downloading part ' + str(int(re.sub(".ts", "", ts_file))) + ' / ' + str(total_parts))
+        part_url = re.sub(r"master\.m3u8.*", "", stream_url) + master.splitlines()[3].split('/')[0] + '/' + ts_file
+        part_response = urllib.request.urlopen(part_url)
+        output_ts.write(part_response.read())
 
-    file_str.close()
+    output_ts.close()
     stream = ffmpeg.input(ts)
     stream = ffmpeg.output(stream, mp4, **{'bsf:a': 'aac_adtstoasc', 'acodec': 'copy', 'vcodec': 'copy'})
     ffmpeg.run(stream)
