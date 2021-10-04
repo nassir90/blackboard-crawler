@@ -98,11 +98,7 @@ async def download_module(index: int, page: Page):
     await page.waitForSelector(MODULE_LINK)
     module_link, module_text = await page.JJeval(MODULE_LINK, "(links, index) => [links[index].href, links[index].innerText]", index)
 
-    if "Elec" in module_text:
-        print("Traversing module #%d : %s" % (index, module_text))
-    else:
-        print("Not traversing module #%d : %s" % (index, module_text))
-        return
+    print("Traversing module #%d : %s" % (index, module_text))
 
     await page.goto(module_link)
 
