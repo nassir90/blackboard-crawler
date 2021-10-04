@@ -1,6 +1,6 @@
 ## Credits
 The login phase, and the panopto video downloading code are not my own work.
-These parts were done by
+These parts were done by [Arch](https://github.com/ArchGryphon9362)
 
 ## Requirements
 
