@@ -97,9 +97,14 @@ async def download_module(index: int, page: Page):
 
     await page.waitForSelector(MODULE_LINK)
     module_link, module_text = await page.JJeval(MODULE_LINK, "(links, index) => [links[index].href, links[index].innerText]", index)
-    await page.goto(module_link)
 
-    print("Traversing module #%d : %s" % (index, module_text))
+    if "Elec" in module_text:
+        print("Traversing module #%d : %s" % (index, module_text))
+    else:
+        print("Not traversing module #%d : %s" % (index, module_text))
+        return
+
+    await page.goto(module_link)
 
     global current_output_dir
     current_output_dir = os.getcwd() + "/downloads/" + module_text + "/"
@@ -168,17 +173,17 @@ async def download_list_content(page: Page, level: str):
 async def traverse_panopto_page(page: Page, level: str):
     await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
     await page.waitFor(3000)
-    for link_element in await page.JJ(PANOPTO_CONTENT):
-        link = await page.evaluate("link => link.href", link_element)
-        if (link):
-            await download_panopto_video(link, page)
+    print (level + "There are %d videos " % len(await page.JJ(PANOPTO_CONTENT)))
+    for link, link_text in await page.JJeval(PANOPTO_CONTENT, "links => links.map(link => [link.href, link.innerText])"):
+        if link:
+            await download_panopto_video(link, link_text, page)
 
-async def download_panopto_video(link: str, page: Page):
-    async def on_res(response: Response):
+async def download_panopto_video(link: str, link_text: str, page: Page):
+    async def on_res(response: Response, link_text: str):
         if response.url == 'https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx':
-            await got_stream_data((await response.json())['Delivery']['Streams'][0]['StreamUrl'])
+            await got_stream_data((await response.json())['Delivery']['Streams'][0]['StreamUrl'], link_text)
 
-    page.on('response', lambda res: asyncio.ensure_future(on_res(res)))
+    page.on('response', lambda res: asyncio.ensure_future(on_res(res, link_text)))
 
     if "instance=blackboard" not in link:
         link += "&instance=blackboard" 
@@ -188,7 +193,7 @@ async def download_panopto_video(link: str, page: Page):
     await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
     await page.waitFor(500)
         
-async def got_stream_data(stream_url: str):
+async def got_stream_data(stream_url: str, link_text: str):
     master_response = urllib.request.urlopen(stream_url)
     master_data = master_response.read()
     master = master_data.decode('utf-8')
@@ -200,8 +205,8 @@ async def got_stream_data(stream_url: str):
     index_data = index_response.read()
     index = index_data.decode('utf-8')
 
-    ts = current_output_dir + "download.ts"
-    mp4 = current_output_dir + "download.mp4"
+    ts = current_output_dir + link_text.strip() + ".ts"
+    mp4 = current_output_dir + link_text.strip() + ".mp4"
     
     try:
         os.remove(ts)
@@ -259,7 +264,7 @@ async def download(url: str, cookies: list, level: str):
 
 async def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hHw:", ["help", "headless", "wget-path"])
+        opts, args = getopt.getopt(sys.argv[1:], "hH", ["help", "headless"])
     except Exception:
         pass
 
@@ -269,13 +274,9 @@ async def main():
         if o in ("-h", "--help"):
             print("-h/--help - print this help menu")
             print("-H/--headless - run in headless mode")
-            print("-w/--wget-path - the location of the wget binary")
             return
         elif o in ("-H", "--headless"):
             headless = True
-        elif o in ("-w", "--wget-path"):
-            global wget_path
-            wget_path = a
 
     browser = await launch(headless=headless, args=['--no-sandbox',  '--disable-setuid-sandbox'])
     page = await browser.newPage()
