@@ -18,11 +18,7 @@ import getopt
 pyppeteer.DEBUG = True  
 nodownloads = False
 
-failed_attempts = 0
-
 async def try_login(browser: Browser, page: Page):
-    global failed_attempts
-
     await page.waitForSelector('#username')
 
     await page.focus('#username')
@@ -43,26 +39,11 @@ async def try_login(browser: Browser, page: Page):
     await page.type('#password', getpass.getpass('TCD Password: '))
     await page.click('.form-button')
 
-    is_logged_in = False
-    cookies = await page.cookies()
-
-    for cookie in cookies:
+    for cookie in await page.cookies():
         if cookie.get('name') in ('shib_idp_session', 's_session_id'):
-            is_logged_in = True
-    
-    if not is_logged_in:
-        failed_attempts += 1
-        if failed_attempts < 3:
-            print('Login failed, please try again')
-            print()
-            await try_login(browser, page)
-        else:
-            print('Failed to login, exiting')
-            exit()
-    else:
-        print('Logged In!')
-        await page.waitFor(2000)
-        await logged_in(browser, page)
+            return True
+
+    return False
 
 async def logged_in(browser: Browser, page: Page):
     await page.goto("https://tcd.cloud.panopto.eu/Panopto/Pages/Home.aspx?instance=blackboard")
@@ -176,6 +157,11 @@ async def traverse_panopto_page(page: Page, level: str):
             await download_panopto_video(link, link_text, page)
 
 async def download_panopto_video(link: str, link_text: str, page: Page):
+    global nodownloads
+    if nodownloads:
+        print("Found panopto video : " + link_text)
+        return
+
     async def on_res(response: Response, link_text: str):
         if response.url == 'https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx':
             await got_stream_data((await response.json())['Delivery']['Streams'][0]['StreamUrl'], link_text)
@@ -236,6 +222,11 @@ async def got_stream_data(stream_url: str, link_text: str):
         pass
 
 async def download(url: str, cookies: list, level: str):
+    global nodownloads
+    if nodownloads:
+        print(level + "Found : " + url)
+        return
+
     print(level + "Downloading : " + url)
 
     s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', cookies))['value']
@@ -243,13 +234,16 @@ async def download(url: str, cookies: list, level: str):
     global current_output_dir
     olddir = os.getcwd()
     os.chdir(current_output_dir)
+    
     request = urllib.request.Request(url)
-    request.add_header("Cookie", "s_session_id="+s_session_id)
-    response = urllib.request.urlopen(request)
+    request.add_header("Cookie", "s_session_id=" + s_session_id)
+
     output_file_path = os.path.basename(response.url)
     temp_file_path = output_file_path + ".uncompleted-write"
+
     if not os.path.isfile(output_file_path):
         print(level + "└" + output_file_path + " does not exist. Downloading...")
+        response = urllib.request.urlopen(request)
         data = response.read()
         temp_file = open(temp_file_path, "wb")
         temp_file.write(data)
@@ -257,6 +251,7 @@ async def download(url: str, cookies: list, level: str):
         os.rename(temp_file_path, output_file_path)
     else:
         print(level + "└" + output_file_path + " exists. Not downloading!")
+
     os.chdir(olddir)
 
 async def main():
@@ -265,8 +260,8 @@ async def main():
     except Exception:
         pass
 
-    headless = False
     global nodownloads
+    headless = False
     
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -284,7 +279,21 @@ async def main():
     await page.goto('https://tcd.blackboard.com/webapps/bb-auth-provider-shibboleth-BBLEARN/execute/shibbolethLogin?authProviderId=_102_1')
     if not os.path.isdir("downloads"):
         os.mkdir("downloads")
-    await try_login(browser, page)
+
+    failed_attempts = 0
+
+    while not await try_login(browser, page):
+        failed_attempts += 1
+        print("Failed to login. ", end="")
+        if failed_attempts < 3:
+            print("Try again")
+        else:
+            print("Exceeded maximum attempts")
+            exit()
+
+    print("Logged in!")
+    await page.waitFor(2000)
+    await logged_in(browser, page)
 
 try:
     asyncio.get_event_loop().run_until_complete(main())
