@@ -16,6 +16,7 @@ import ffmpeg
 import getopt
 
 pyppeteer.DEBUG = True  
+nodownloads = False
 
 failed_attempts = 0
 
@@ -260,17 +261,21 @@ async def download(url: str, cookies: list, level: str):
 
 async def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hH", ["help", "headless"])
+        opts, args = getopt.getopt(sys.argv[1:], "hH0", ["help", "headless", "no-downloads"])
     except Exception:
         pass
 
     headless = False
+    global nodownloads
     
     for o, a in opts:
         if o in ("-h", "--help"):
             print("-h/--help - print this help menu")
             print("-H/--headless - run in headless mode")
+            print("-0/--no-downloads - don't actually download any files. Just output their links")
             return
+        elif o in ("-0", "--no-downloads"):
+            nodownloads = True
         elif o in ("-H", "--headless"):
             headless = True
 
