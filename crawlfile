@@ -1,0 +1,5 @@
+MODULE "link" "module"
+	MODULE "sublink" "submodule"
+	ENDMODULE
+	FILE "filelink" "file"
+ENDMODULE

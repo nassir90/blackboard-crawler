@@ -27,3 +27,7 @@ Specify submodules of 'Electronics'
 [ ] Video lecutres
 
 .etc
+
+## Caching module list
+Modules rarely change so what I should really be doing is caching their links and providing a CLI to update said list.
+E.g. Blackboard can be thought of a repository and cache updating as `apt update`.

@@ -98,11 +98,7 @@ async def download_module(index: int, page: Page):
     await page.waitForSelector(MODULE_LINK)
     module_link, module_text = await page.JJeval(MODULE_LINK, "(links, index) => [links[index].href, links[index].innerText]", index)
 
-    if "Elec" in module_text:
-        print("Traversing module #%d : %s" % (index, module_text))
-    else:
-        print("Not traversing module #%d : %s" % (index, module_text))
-        return
+    print("Traversing module #%d : %s" % (index, module_text))
 
     await page.goto(module_link)
 
@@ -264,7 +260,7 @@ async def download(url: str, cookies: list, level: str):
 
 async def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hH", ["help", "headless"])
+        opts, args = getopt.getopt(sys.argv[1:], "hH", ["help", "headless","module-regex"])
     except Exception:
         pass
 
@@ -274,6 +270,7 @@ async def main():
         if o in ("-h", "--help"):
             print("-h/--help - print this help menu")
             print("-H/--headless - run in headless mode")
+            print("--module-regex - modules will only be crawled if they match the pattern")
             return
         elif o in ("-H", "--headless"):
             headless = True
