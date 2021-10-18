@@ -16,9 +16,20 @@ import ffmpeg
 import getopt
 
 pyppeteer.DEBUG = True  
-nodownloads = False
 
-async def try_login(browser: Browser, page: Page):
+MODULE_LINK = ".courseListing > li > a"
+SUBMODULE_LINK = "#courseMenuPalette_contents li a"
+CONTENT = "#content_listContainer > li"
+CONTENT_HEADER_LINK = "h3 a"
+CONTENT_BODY_LINK = ".details a"
+CONTENT_LINK = CONTENT_BODY_LINK + "," + CONTENT_HEADER_LINK
+PANOPTO_CONTENT = "a.detail-title"
+
+current_output_dir = ""
+agreed_to_cookies = False
+no_downloads = False
+
+async def try_login(page: Page):
     await page.waitForSelector('#username')
 
     await page.focus('#username')
@@ -45,10 +56,8 @@ async def try_login(browser: Browser, page: Page):
 
     return False
 
-async def logged_in(browser: Browser, page: Page):
-    await page.goto("https://tcd.cloud.panopto.eu/Panopto/Pages/Home.aspx?instance=blackboard")
+async def logged_in(page: Page):
     await page.waitFor(5000)
-    print (page.url)
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
     
     root_dir = os.getcwd()
@@ -58,29 +67,21 @@ async def logged_in(browser: Browser, page: Page):
         await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
         os.chdir(root_dir)
 
-
-MODULE_LINK = ".courseListing > li > a"
-SUBMODULE_LINK = "#courseMenuPalette_contents li a"
-CONTENT = "#content_listContainer > li"
-CONTENT_HEADER_LINK = "h3 a"
-CONTENT_BODY_LINK = ".details a"
-CONTENT_LINK = CONTENT_BODY_LINK + "," + CONTENT_HEADER_LINK
-PANOPTO_CONTENT = "a.detail-title"
-
-agreed = False
-current_output_dir = ""
-
 async def download_module(index: int, page: Page):
-    global agreed
-    if (not agreed):
+    global agreed_to_cookies
+    if not agreed_to_cookies:
         await page.waitForSelector("#agree_button", timeout=3000)
         await page.click("#agree_button") # Need to accept privacy policy
-        agreed = True
+        agreed_to_cookies = True
 
     await page.waitForSelector(MODULE_LINK)
     module_link, module_text = await page.JJeval(MODULE_LINK, "(links, index) => [links[index].href, links[index].innerText]", index)
 
-    print("Traversing module #%d : %s" % (index, module_text))
+    if "COMP" in module_text:
+        print("Traversing module #%d : %s" % (index, module_text))
+    else:
+        print("Skipping module #%d : %s" % (index, module_text))
+        return
 
     await page.goto(module_link)
 
@@ -103,25 +104,17 @@ async def traverse_submodule(submodule_index: int, page: Page):
     await download_content(page, "  ")
 
 async def download_content(page: Page, level: str):
-    try:
-        await page.waitForSelector(CONTENT, timeout=1000)
+    if "/listContent" in page.url:
         await download_list_content(page, level)
-        return
-    except Exception as e:
-        print(level + str(e))
-
-    try:
+    elif "/ppto-PanoptoCourseTool-BBLEARN" in page.url:
         await page.waitForSelector("iframe", timeout=1000)
-        iframe = await page.J("iframe")
-        source = await page.evaluate("iframe => iframe.src", iframe)
-        if "panopto" in source:
-            await page.goto(source)
-            await traverse_panopto_page(page, level)
-            return
-    except Exception as e:
-        print (level + str(e))
-
-    print(level + "Not panopto content OR list content")
+        source = await page.Jeval("iframe", "iframe => iframe.src")
+        await page.goto(source)
+        await traverse_panopto_page(page, level)
+    elif "/announcement" in page.url:
+        print(level + "Downloading and storing announcements is not supported yet")
+    else:
+        print(level + "Not panopto content OR list content")
 
 
 async def download_list_content(page: Page, level: str):
@@ -157,8 +150,8 @@ async def traverse_panopto_page(page: Page, level: str):
             await download_panopto_video(link, link_text, page)
 
 async def download_panopto_video(link: str, link_text: str, page: Page):
-    global nodownloads
-    if nodownloads:
+    global no_downloads
+    if no_downloads:
         print("Found panopto video : " + link_text)
         return
 
@@ -222,8 +215,8 @@ async def got_stream_data(stream_url: str, link_text: str):
         pass
 
 async def download(url: str, cookies: list, level: str):
-    global nodownloads
-    if nodownloads:
+    global no_downloads
+    if no_downloads:
         print(level + "Found : " + url)
         return
 
@@ -260,7 +253,7 @@ async def main():
     except Exception:
         pass
 
-    global nodownloads
+    global no_downloads
     headless = False
     
     for o, a in opts:
@@ -270,7 +263,7 @@ async def main():
             print("-0/--no-downloads - don't actually download any files. Just output their links")
             return
         elif o in ("-0", "--no-downloads"):
-            nodownloads = True
+            no_downloads = True
         elif o in ("-H", "--headless"):
             headless = True
 
@@ -282,7 +275,7 @@ async def main():
 
     failed_attempts = 0
 
-    while not await try_login(browser, page):
+    while not await try_login(page):
         failed_attempts += 1
         print("Failed to login. ", end="")
         if failed_attempts < 3:
@@ -292,8 +285,7 @@ async def main():
             exit()
 
     print("Logged in!")
-    await page.waitFor(2000)
-    await logged_in(browser, page)
+    await logged_in(page)
 
 try:
     asyncio.get_event_loop().run_until_complete(main())
