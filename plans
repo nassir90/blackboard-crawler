@@ -2,20 +2,25 @@
 #2 prompt.py "Asks the user which crawlfile entries they want to download"
 #3 download.py "Downloads files as normal"
 
-crawlfile
+Ok I'm not going to bother making my own markdown language... crawl.json
 
-FILE ::= file "link" "name"?
-CONTENT ::=
-	( list_content "link" "name"? \
-		FILE \
-		CONTENT* |
-		panopt_content "link" "name"? )
-	endcontent
-
-MODULE ::=
-	module "link" "name"? \
-		CONTENT* \
-	endmodule
+```js
+{
+	"modules" : [
+		{
+			"name" : "SAMPLE_MODULE",
+			"submodules" : [
+				{
+					"name" : "Week by Week",
+					"submodules" : [],
+					"files" : [],
+					"videos" : []
+				}
+			]
+		}
+	]
+}
+```
 
 Select Modules To Download, or specify which submodules to download
 [ ] Electronics

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import traceback
 import getpass
 import os
@@ -26,6 +27,7 @@ CONTENT_LINK = CONTENT_BODY_LINK + "," + CONTENT_HEADER_LINK
 PANOPTO_CONTENT = "a.detail-title"
 
 current_output_dir = ""
+crawlfile_path = "crawl.json"
 agreed_to_cookies = False
 no_downloads = False
 
@@ -56,18 +58,23 @@ async def try_login(page: Page):
 
     return False
 
-async def logged_in(page: Page):
+async def crawl(page: Page):
+    modules = []
+
     await page.waitFor(5000)
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
     
     root_dir = os.getcwd()
     await page.waitForSelector(MODULE_LINK)
     for module_index in range(len(await page.JJ(MODULE_LINK))):
-        await download_module(module_index, page)
+        modules.append(await traverse_module(module_index, page))
         await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
         os.chdir(root_dir)
 
-async def download_module(index: int, page: Page):
+    crawlfile = open(crawlfile_path, "w")
+    json.dump(modules, crawlfile)
+
+async def traverse_module(index: int, page: Page):
     global agreed_to_cookies
     if not agreed_to_cookies:
         await page.waitForSelector("#agree_button", timeout=3000)
@@ -76,12 +83,13 @@ async def download_module(index: int, page: Page):
 
     await page.waitForSelector(MODULE_LINK)
     module_link, module_text = await page.JJeval(MODULE_LINK, "(links, index) => [links[index].href, links[index].innerText]", index)
+    module = {
+        "name" : module_text,
+        "link" : module_link,
+        "submodules" : []
+    };
 
-    if "COMP" in module_text:
-        print("Traversing module #%d : %s" % (index, module_text))
-    else:
-        print("Skipping module #%d : %s" % (index, module_text))
-        return
+    print("Traversing module #%d : %s" % (index, module_text))
 
     await page.goto(module_link)
 
@@ -92,32 +100,42 @@ async def download_module(index: int, page: Page):
 
     module_root = page.url
     for submodule_index in range(len(await page.JJ(SUBMODULE_LINK))):
-        await traverse_submodule(submodule_index, page)
+        module["submodules"].append(await traverse_submodule(submodule_index, page))
         await page.goto(module_root)
+
+    return module
+
 
 async def traverse_submodule(submodule_index: int, page: Page):
     submodule_link, submodule_text = await page.JJeval(SUBMODULE_LINK, "(links, submodule_index) => [links[submodule_index].href, links[submodule_index].innerText]", submodule_index)
+    submodule = {
+        "name" : submodule_text,
+        "link" : submodule_link,
+        "files" : [],
+        "videos" : [],
+        "lists" : []
+    }
+
     await page.goto(submodule_link)
     
     print(" Traversing submodule #" + str(submodule_index) + " :" + submodule_text)
     
-    await download_content(page, "  ")
+    await download(page, "  ")
 
-async def download_content(page: Page, level: str):
+    return submodule
+
+async def download(page: Page, level: str):
     if "/listContent" in page.url:
-        await download_list_content(page, level)
+        await traverse_list(page, level)
     elif "/ppto-PanoptoCourseTool-BBLEARN" in page.url:
-        await page.waitForSelector("iframe", timeout=1000)
-        source = await page.Jeval("iframe", "iframe => iframe.src")
-        await page.goto(source)
-        await traverse_panopto_page(page, level)
+        await page.goto(await page.Jeval("iframe", "iframe => iframe.src"))
+        await traverse_panopto_list(page, level)
     elif "/announcement" in page.url:
         print(level + "Downloading and storing announcements is not supported yet")
     else:
         print(level + "Not panopto content OR list content")
 
-
-async def download_list_content(page: Page, level: str):
+async def traverse_list(page: Page, level: str):
     content_root = page.url
     for content_index in range(len(await page.JJ(CONTENT))):
         await page.waitForSelector(CONTENT, timeout=2000)
@@ -127,21 +145,21 @@ async def download_list_content(page: Page, level: str):
         links = await content.JJeval(".details a", "links => links.map(a => a.href)")
         for link in links:
             if "webapp" not in link:
-                await download(link, await page.cookies(), level)
+                await download_file(link, await page.cookies(), level)
 
         header_link = await content.J("h3 a")
         await content.hover()
         if header_link:
             link, link_text = await page.evaluate('header_link => [header_link.href, header_link.innerText]', header_link)
             if "webapp" not in link:
-                await download(link, await page.cookies(), level)
+                await download_file(link, await page.cookies(), level)
             elif link not in page.url:
                 print(level + "Descending into : '%s'" % link_text)
                 await page.goto(link)
-                await download_content(page, level + " ")
+                await download(page, level + " ")
                 await page.goto(content_root)
 
-async def traverse_panopto_page(page: Page, level: str):
+async def traverse_panopto_list(page: Page, level: str):
     await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
     await page.waitFor(3000)
     print (level + "There are %d videos " % len(await page.JJ(PANOPTO_CONTENT)))
@@ -183,28 +201,19 @@ async def got_stream_data(stream_url: str, link_text: str):
 
     ts = current_output_dir + link_text.strip() + ".ts"
     mp4 = current_output_dir + link_text.strip() + ".mp4"
-    
-    try:
-        os.remove(ts)
-    except Exception:
-        pass
-
-    try:
-        os.remove(mp4)
-    except Exception:
-        pass
 
     output_ts = open(ts, 'wb')
     ts_files = re.sub(r"#.*\n", "", index).splitlines()
-    total_parts = int(re.sub(".ts", "", ts_files[-1]))
+    total_parts = int(ts_files[-1].strip(".ts")) # Very hacky, may change later
     for ts_file in ts_files:
         if ts_file:
-            print('Downloading part ' + str(int(re.sub("\.ts", "", ts_file))) + ' / ' + str(total_parts))
-            part_url = re.sub(r"master\.m3u8.*", "", stream_url) + first_master_entry.split('/')[0] + '/' + ts_file
+            print('Downloading part %d/%d' % (int(ts_file.strip(".ts")),  total_parts))
+            part_url = re.sub(r"master\.m3u8.*", first_master_entry.split('/')[0] + '/' + ts_file, stream_url)
             part_response = urllib.request.urlopen(part_url)
             output_ts.write(part_response.read())
 
     output_ts.close()
+
     stream = ffmpeg.input(ts)
     stream = ffmpeg.output(stream, mp4, **{'bsf:a': 'aac_adtstoasc', 'acodec': 'copy', 'vcodec': 'copy'})
     ffmpeg.run(stream)
@@ -214,7 +223,7 @@ async def got_stream_data(stream_url: str, link_text: str):
     except Exception:
         pass
 
-async def download(url: str, cookies: list, level: str):
+async def download_file(url: str, cookies: list, level: str):
     global no_downloads
     if no_downloads:
         print(level + "Found : " + url)
@@ -285,7 +294,7 @@ async def main():
             exit()
 
     print("Logged in!")
-    await logged_in(page)
+    await crawl(page)
 
 try:
     asyncio.get_event_loop().run_until_complete(main())
