@@ -8,6 +8,7 @@ import pyppeteer
 import traceback
 from pyppeteer import launch
 from pyppeteer.page import Page
+from pyppeteer.network_manager import Response
 import urllib.request
 import getopt
 
@@ -24,34 +25,7 @@ PANOPTO_CONTENT = "a.detail-title"
 crawlfile_path = "crawl.json"
 agreed_to_cookies = False
 
-async def try_login(page: Page):
-    await page.waitForSelector('#username')
-
-    await page.focus('#username')
-    await page.keyboard.down('Control')
-    await page.keyboard.press('KeyA')
-    await page.keyboard.up('Control')
-    await page.keyboard.press('Backspace')
-
-    await page.type('#username', input('TCD Username: '))
-    await page.waitForSelector('#password')
-
-    await page.focus('#password')
-    await page.keyboard.down('Control')
-    await page.keyboard.press('KeyA')
-    await page.keyboard.up('Control')
-    await page.keyboard.press('Backspace')
-
-    await page.type('#password', getpass.getpass('TCD Password: '))
-    await page.click('.form-button')
-
-    for cookie in await page.cookies():
-        if cookie.get('name') in ('shib_idp_session', 's_session_id'):
-            return True
-
-    return False
-
-async def traverse_module(module_link: str, module_text: str, page: Page):
+async def traverse_module(module_link: str, module_text: str, page: Page, submodule_regex=""):
     module = {"name" : module_text, "link" : module_link, "submodules" : []};
 
     print("Traversing module %s" % module_text)
@@ -66,11 +40,12 @@ async def traverse_module(module_link: str, module_text: str, page: Page):
 
     
     for submodule_link, submodule_text in await page.JJeval(SUBMODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
-        module["submodules"] = [await traverse_submodule(submodule_link, submodule_text, page)]
+        if submodule_regex in submodule_text:
+            module["submodules"] = [await traverse_submodule(submodule_link, submodule_text, page)]
 
     return module
 
-async def crawl(page: Page):
+async def crawl(page: Page, submodule_regex="", module_regex=""):
     modules = []
 
     await page.waitFor(1000)
@@ -85,7 +60,8 @@ async def crawl(page: Page):
     print("HERE")
 
     for module_link, module_text in await page.JJeval(MODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
-        modules.append(await traverse_module(module_link, module_text, page))
+        if module_regex in module_text:
+            modules.append(await traverse_module(module_link, module_text, page, submodule_regex=submodule_regex))
 
     crawlfile = open(crawlfile_path, "w")
     json.dump(modules, crawlfile)
@@ -97,17 +73,17 @@ async def traverse_submodule(submodule_link: str, submodule_text: str, page: Pag
         "name" : submodule_text,
         "link" : submodule_link,
         "files" : [],
-        "panoptoVideos" : [],
+        "videos" : [],
         "submodules" : [] # AAHHHHH
     }
     
     print(" Traversing submodule '%s' " % submodule_text)
     
     indices = await index(page, "  ")
-    if indices:
-        submodule["files"] = indices.get("files", [])
-        submodule["panoptoVideos"] = indices.get("panoptoVideos", [])
-        submodule["submodules"] = indices.get("submodules", [])
+
+    submodule["files"] = indices.get("files", [])
+    submodule["videos"] = indices.get("videos", [])
+    submodule["submodules"] = indices.get("submodules", [])
 
     return submodule
 
@@ -119,6 +95,7 @@ async def index(page: Page, level: str):
         return await traverse_panopto_list(page, level)
     else:
         print(level + "Unsupported content type")
+        return {}
 
 async def traverse_list(page: Page, level: str):
     indices = {"files" : [], "videos" : [], "submodules" : []}
@@ -139,12 +116,20 @@ async def traverse_list(page: Page, level: str):
 async def traverse_panopto_list(page: Page, level: str):
     indices = { "files": [], "videos": [], "submodules": [] }
     await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
-    await page.waitFor(3000)
+    await page.waitFor(1000)
     print (level + "There are %d videos " % len(await page.JJ(PANOPTO_CONTENT)))
     for link, link_text in await page.JJeval(PANOPTO_CONTENT, "links => links.map(link => [link.href, link.innerText])"):
-        if link:
-            indices["videos"].append({"name" : link_text, "link" : link})
-            print(level + " Found panopto video : " + link_text)
+        if link_text and link:
+            if "instance=blackboard" not in link:
+                link += "&instance=blackboard" 
+
+            await page.goto(link)
+
+            response = await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
+            video = {'name': link_text, 'link' : (await response.json())['Delivery']['Streams'][0]['StreamUrl'] }
+
+            indices["videos"].append(video)
+
     return indices
 
 async def get_real_filename(url: str, cookies: list, level: str):
@@ -160,40 +145,3 @@ async def get_real_filename(url: str, cookies: list, level: str):
     
     print(level + "Found : " + url)
     return url
-            
-
-async def main():
-    opts, args = getopt.getopt(sys.argv[1:], "hH0", ["help", "headless", "no-indices"])
-
-    headless = False
-    
-    for o, a in opts:
-        if o in ("-h", "--help"):
-            print("-h/--help - print this help menu")
-            print("-H/--headless - run in headless mode")
-            return
-        elif o in ("-H", "--headless"):
-            headless = True
-
-    browser = await launch(headless=headless, args=['--no-sandbox',  '--disable-setuid-sandbox'])
-    page = await browser.newPage()
-    await page.goto('https://tcd.blackboard.com/webapps/bb-auth-provider-shibboleth-BBLEARN/execute/shibbolethLogin?authProviderId=_102_1')
-
-    failed_attempts = 0
-
-    while not await try_login(page):
-        failed_attempts += 1
-        print("Failed to login. ", end="")
-        if failed_attempts < 3:
-            print("Try again")
-        else:
-            print("Exceeded maximum attempts")
-            exit()
-
-    print("Logged in!")
-    await crawl(page)
-
-try:
-    asyncio.get_event_loop().run_until_complete(main())
-finally:
-    pass

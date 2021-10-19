@@ -1,3 +1,6 @@
 downloads
 download.zip
 *.swp
+pruned_crawl.json
+choices.json
+__pycache__
