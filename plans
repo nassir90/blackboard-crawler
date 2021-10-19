@@ -4,34 +4,7 @@
 
 Ok I'm not going to bother making my own markdown language... crawl.json
 
-```js
-{
-	"modules" : [
-		{
-			"name" : "SAMPLE_MODULE",
-			"submodules" : [
-				{
-					"name" : "Week by Week",
-					"submodules" : [],
-					"files" : [],
-					"videos" : []
-				}
-			]
-		}
-	]
-}
-```
-
-Select Modules To Download, or specify which submodules to download
-[ ] Electronics
-[ ] Programming
-
-Specify submodules of 'Electronics'
-
-[ ] Announcements
-[ ] Video lecutres
-
-.etc
+What module do you want to configure?
 
 ## Caching module list
 Modules rarely change so what I should really be doing is caching their links and providing a CLI to update said list.

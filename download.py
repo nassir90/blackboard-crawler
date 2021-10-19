@@ -61,6 +61,7 @@ async def try_login(page: Page):
 async def crawl(page: Page):
     modules = []
 
+    await page.waitFor(2000)
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
     
     root_dir = os.getcwd()
@@ -93,6 +94,7 @@ async def traverse_module(index: int, page: Page):
         print("Traversing module #%d : %s" % (index, module_text))
     else:
         print("Skipping module #%d : %s" % (index, module_text))
+        return
 
     await page.goto(module_link)
 
@@ -245,9 +247,7 @@ async def download_file(url: str, cookies: list, level: str):
     global no_downloads
     if no_downloads:
         print(level + "Found : " + url)
-        return
-
-    print(level + "Downloading : " + url)
+        return url
 
     s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', cookies))['value']
 
@@ -258,7 +258,14 @@ async def download_file(url: str, cookies: list, level: str):
     request = urllib.request.Request(url)
     request.add_header("Cookie", "s_session_id=" + s_session_id)
 
-    response = urllib.request.urlopen(request)
+    try:
+        response = urllib.request.urlopen(request)
+    except Exception as e:
+        print(level + str(e))
+        return url
+
+    print(level + "Downloading : " + response.url)
+
     output_file_path = os.path.basename(response.url)
     temp_file_path = output_file_path + ".uncompleted-write"
 
