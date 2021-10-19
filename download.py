@@ -61,11 +61,11 @@ async def try_login(page: Page):
 async def crawl(page: Page):
     modules = []
 
-    await page.waitFor(5000)
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
     
     root_dir = os.getcwd()
     await page.waitForSelector(MODULE_LINK)
+
     for module_index in range(len(await page.JJ(MODULE_LINK))):
         modules.append(await traverse_module(module_index, page))
         await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
@@ -89,7 +89,10 @@ async def traverse_module(index: int, page: Page):
         "submodules" : []
     };
 
-    print("Traversing module #%d : %s" % (index, module_text))
+    if "MATH" in module_text:
+        print("Traversing module #%d : %s" % (index, module_text))
+    else:
+        print("Skipping module #%d : %s" % (index, module_text))
 
     await page.goto(module_link)
 
@@ -112,30 +115,39 @@ async def traverse_submodule(submodule_index: int, page: Page):
         "name" : submodule_text,
         "link" : submodule_link,
         "files" : [],
-        "videos" : [],
-        "lists" : []
+        "panoptoVideos" : [],
+        "submodules" : [] # AAHHHHH
     }
 
     await page.goto(submodule_link)
     
     print(" Traversing submodule #" + str(submodule_index) + " :" + submodule_text)
     
-    await download(page, "  ")
+    downloads = await download(page, "  ")
+    if downloads:
+        if downloads.get("files"):
+            submodule["files"] = downloads["files"]
+        if downloads.get("panoptoVideos"):
+            submodule["panoptoVideos"] = downloads["panoptoVideos"]
+        if downloads.get("submodules"):
+            submodule["submodules"] = downloads["submodules"]
 
     return submodule
 
 async def download(page: Page, level: str):
     if "/listContent" in page.url:
-        await traverse_list(page, level)
+        return await traverse_list(page, level)
     elif "/ppto-PanoptoCourseTool-BBLEARN" in page.url:
         await page.goto(await page.Jeval("iframe", "iframe => iframe.src"))
-        await traverse_panopto_list(page, level)
+        return await traverse_panopto_list(page, level)
     elif "/announcement" in page.url:
         print(level + "Downloading and storing announcements is not supported yet")
     else:
         print(level + "Not panopto content OR list content")
 
 async def traverse_list(page: Page, level: str):
+    downloads = {"files" : [], "videos" : [], "submodules" : []}
+
     content_root = page.url
     for content_index in range(len(await page.JJ(CONTENT))):
         await page.waitForSelector(CONTENT, timeout=2000)
@@ -145,27 +157,34 @@ async def traverse_list(page: Page, level: str):
         links = await content.JJeval(".details a", "links => links.map(a => a.href)")
         for link in links:
             if "webapp" not in link:
-                await download_file(link, await page.cookies(), level)
+                downloads["files"].append(await download_file(link, await page.cookies(), level))
 
         header_link = await content.J("h3 a")
-        await content.hover()
         if header_link:
             link, link_text = await page.evaluate('header_link => [header_link.href, header_link.innerText]', header_link)
             if "webapp" not in link:
-                await download_file(link, await page.cookies(), level)
+                downloads["files"].append(await download_file(link, await page.cookies(), level))
             elif link not in page.url:
                 print(level + "Descending into : '%s'" % link_text)
                 await page.goto(link)
-                await download(page, level + " ")
+                downloads["submodules"].append(await download(page, level + " "))
                 await page.goto(content_root)
 
+    return downloads
+
 async def traverse_panopto_list(page: Page, level: str):
+    downloads = { "files": [], "videos": [], "submodules": [] }
     await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
     await page.waitFor(3000)
     print (level + "There are %d videos " % len(await page.JJ(PANOPTO_CONTENT)))
     for link, link_text in await page.JJeval(PANOPTO_CONTENT, "links => links.map(link => [link.href, link.innerText])"):
         if link:
+            downloads["videos"].append({
+                "name" : link_text,
+                "link" : link
+            })
             await download_panopto_video(link, link_text, page)
+    return downloads
 
 async def download_panopto_video(link: str, link_text: str, page: Page):
     global no_downloads
@@ -185,7 +204,6 @@ async def download_panopto_video(link: str, link_text: str, page: Page):
     await page.goto(link)
 
     await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
-    await page.waitFor(500)
         
 async def got_stream_data(stream_url: str, link_text: str):
     master_response = urllib.request.urlopen(stream_url)
@@ -240,12 +258,12 @@ async def download_file(url: str, cookies: list, level: str):
     request = urllib.request.Request(url)
     request.add_header("Cookie", "s_session_id=" + s_session_id)
 
+    response = urllib.request.urlopen(request)
     output_file_path = os.path.basename(response.url)
     temp_file_path = output_file_path + ".uncompleted-write"
 
     if not os.path.isfile(output_file_path):
         print(level + "└" + output_file_path + " does not exist. Downloading...")
-        response = urllib.request.urlopen(request)
         data = response.read()
         temp_file = open(temp_file_path, "wb")
         temp_file.write(data)
@@ -255,6 +273,8 @@ async def download_file(url: str, cookies: list, level: str):
         print(level + "└" + output_file_path + " exists. Not downloading!")
 
     os.chdir(olddir)
+
+    return response.url
 
 async def main():
     try:
