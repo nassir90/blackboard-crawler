@@ -13,3 +13,7 @@ If you don't want to use pip, you're smart enough to figure things out.
 ## CLI Options
 
 Use with the option `-h` or `--help` to view all other available options.
+
+## How do I run it?
+
+`py download.py`
