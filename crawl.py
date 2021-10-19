@@ -41,7 +41,7 @@ async def traverse_module(module_link: str, module_text: str, page: Page, submod
     
     for submodule_link, submodule_text in await page.JJeval(SUBMODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
         if submodule_regex in submodule_text:
-            module["submodules"] = [await traverse_submodule(submodule_link, submodule_text, page)]
+            module["submodules"].append(await traverse_submodule(submodule_link, submodule_text, page))
 
     return module
 
