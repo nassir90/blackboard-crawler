@@ -6,8 +6,6 @@ import getpass
 import sys
 import pyppeteer
 from pyppeteer import launch
-from pyppeteer.browser import Browser
-from pyppeteer.network_manager import Response
 from pyppeteer.page import Page
 import urllib.request
 import getopt
@@ -161,19 +159,16 @@ async def get_real_filename(url: str, cookies: list, level: str):
         request.add_header("Cookie", "s_session_id=" + s_session_id)
         try:
             response = urllib.request.urlopen(request, timeout=5)
-            print(level + "Found : " + response.url)
-            return response.url
+            url = response.url
         except Exception as e:
             print(level + str(e))
     
+    print(level + "Found : " + url)
     return url
             
 
 async def main():
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], "hH0", ["help", "headless", "no-indices"])
-    except Exception:
-        pass
+    opts, args = getopt.getopt(sys.argv[1:], "hH0", ["help", "headless", "no-indices"])
 
     headless = False
     
