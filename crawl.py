@@ -5,6 +5,7 @@ import json
 import getpass
 import sys
 import pyppeteer
+import traceback
 from pyppeteer import launch
 from pyppeteer.page import Page
 import urllib.request
@@ -50,13 +51,22 @@ async def try_login(page: Page):
 
     return False
 
-async def traverse_module(module_text: str, page: Page):
+async def traverse_module(module_link: str, module_text: str, page: Page):
     module = {"name" : module_text, "link" : module_link, "submodules" : []};
 
     print("Traversing module %s" % module_text)
+ 
+    await page.goto(module_link)
+    
+    try:
+        await page.waitForSelector(SUBMODULE_LINK, timeout=1000)
+    except:
+        print("John Waldon Moment 🗿")
+        return module
+
+    
     for submodule_link, submodule_text in await page.JJeval(SUBMODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
-        await page.goto(submodule_link)
-        module["submodules"].append(await traverse_submodule(submodule_link, submodule_text, page))
+        module["submodules"] = [await traverse_submodule(submodule_link, submodule_text, page)]
 
     return module
 
@@ -66,18 +76,23 @@ async def crawl(page: Page):
     await page.waitFor(1000)
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
     
+    print("Here")
+
     await page.waitForSelector("#agree_button", timeout=3000)
     await page.click("#agree_button") # Need to accept privacy policy
     agreed_to_cookies = True
+    
+    print("HERE")
 
-    for module_link, module_text in page.JJeval(MODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
-        await page.goto(module_link)
-        modules.append(await traverse_module(module_text, page))
+    for module_link, module_text in await page.JJeval(MODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
+        modules.append(await traverse_module(module_link, module_text, page))
 
     crawlfile = open(crawlfile_path, "w")
     json.dump(modules, crawlfile)
 
-async def traverse_submodule(submodule_text: str, page: Page):
+async def traverse_submodule(submodule_link: str, submodule_text: str, page: Page):
+    await page.goto(submodule_link)
+
     submodule = {
         "name" : submodule_text,
         "link" : submodule_link,
@@ -110,7 +125,7 @@ async def traverse_list(page: Page, level: str):
 
     content_root = page.url
     
-    for link, link_text, header in page.JJeval("%(0)s .details a, %(0)s h3 a" % {'0', CONTENT}, "links => links.map(a => [a.href, a.innerText, a.parentElement.tagName == 'H3'])"):
+    for link, link_text, header in await page.JJeval("%(0)s .details a, %(0)s h3 a" % {'0' : CONTENT}, "links => links.map(a => [a.href, a.innerText, a.parentElement.tagName == 'H3'])"):
         if "webapps" not in link:
             indices["files"].append(await get_real_filename(link, await page.cookies(), level))
         elif header and link not in page.url:
