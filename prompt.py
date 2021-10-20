@@ -22,7 +22,17 @@ def prompt(input_path="crawl.json", output_path="choices.json"):
 
     module_choices = { module["name"] : {  submodule["name"] : True for submodule in module["submodules"] } for module in modules}
 
-    d = Dialog(dialog="dialog")
+    try:
+        d = Dialog(dialog="dialog")
+    except Exception as e:
+        print("An error occured: " + str(e))
+        print("Perhaps dialog is not installed")
+        if input(" Use default module choices? [y/n] ") == "y":
+            json.dump(module_choices, open(output_path, "w"))
+            return
+        else:
+            exit(1)
+
     while True:
         choices = [(module_name, module_status(module)) for module_name, module in module_choices.items()]
         code, choice = d.menu("What modules are you downloading?", width=100, choices=choices)

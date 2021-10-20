@@ -10,6 +10,15 @@ If you have pip installed, call `pip install -r requirements.txt`.
 If not, install pip and then call it.
 If you don't want to use pip, you're smart enough to figure things out.
 
+### Dialog
+
+Linux users should use their package managers to install `dialog`.
+
+MacOS users should do the same, e.g. by using `brew install dialog`.
+
+I am currently unsure how `dialog` can be installed on windows.
+Windows users will have to settle for selecting all modules unitl I find a cross platform solution or I find out how to install `dialog` on the OS.
+
 ## CLI Options
 
 Use with the option `-h` or `--help` to view all other available options, or look at the file titled "help" in this repo.
