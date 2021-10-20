@@ -56,8 +56,7 @@ def prompt(input_path="crawl.json", output_path="choices.json"):
                     else:
                         break
             else:
-                downloading = response == DOWNLOADING
                 for submodule in submodules:
-                    submodules[submodule] = downloading
+                    submodules[submodule] = response == DOWNLOADING
 
     json.dump(module_choices, open(output_path, "w"))
