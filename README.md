@@ -16,4 +16,4 @@ Use with the option `-h` or `--help` to view all other available options, or loo
 
 ## How do I run it?
 
-`py blackboard-crawler.py`
+`py blackboard-crawler.py [OPTIONS]`
