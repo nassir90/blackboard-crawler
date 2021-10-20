@@ -39,12 +39,15 @@ async def try_login(page: Page):
     return False
 
 async def main():
-    opts, args = getopt.getopt(sys.argv[1:], "hH0", ["help", "headless", "no-indices", "module-regex=", "submodule-regex="])
+    opts, args = getopt.getopt(sys.argv[1:], "hHp", ["help", "headless", "no-indices", "module-regex=", "submodule-regex=", "crawl=", "prompt=", "download="])
 
     headless = False
     no_downloads = False
     module_regex = ""
     submodule_regex = ""
+    should_crawl = None
+    should_prompt = None
+    should_download = None
     
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -54,12 +57,18 @@ async def main():
             return
         elif o in ("-H", "--headless"):
             headless = True
-        elif o in ("-0", "-U", "--update"):
+        elif o in ("-U", "--update"):
             no_downloads = True
         elif o == "--module-regex":
             module_regex = a
         elif o == "--submodule-regex":
             submodule_regex = a
+        elif o == "--crawl":
+            should_crawl = a == 'yes'
+        elif o in ('--p', "--prompt"):
+            should_prompt = a == 'yes'
+        elif o == "--download":
+            should_download = a == 'yes'
 
     browser = await launch(headless=headless, args=['--no-sandbox',  '--disable-setuid-sandbox'])
     page = await browser.newPage()
@@ -76,13 +85,20 @@ async def main():
             exit()
 
     print("Logged in!")
-    if not os.path.exists("crawl.json") or no_downloads or input("Crawl.json exists.\n Regenerate? This will take some time. [y/n] ") == "y":
+    if should_crawl == None:
+        should_crawl = not os.path.exists("crawl.json") or input("Crawl.json exists.\n Regenerate? This will take some time. [y/n] ") == "y"
+    if should_crawl:
         await crawl(page, module_regex=module_regex, submodule_regex=submodule_regex)
         print("Regenerated 'crawl.json'")
 
-    if not no_downloads:
-        if not os.path.exists("choices.json") or input("There is a choices.json here.\n Regenerate? You will have to go through the prompt menu again. [y/n] ") == "y":
-            prompt()
+    if should_prompt == None:
+        should_prompt = not os.path.exists("choices.json") or input("There is a choices.json here.\n Regenerate? You will have to go through the prompt menu again. [y/n] ") == "y"
+    if should_prompt:
+        prompt()
+
+    if should_download == None:
+        should_download = input("Download files?\n Download? [y/n] ") == 'y'
+    if should_download:
         await page.reload()
         await page.waitFor(1000)
         s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', await page.cookies()))['value']
