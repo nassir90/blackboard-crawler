@@ -12,8 +12,8 @@ If you don't want to use pip, you're smart enough to figure things out.
 
 ## CLI Options
 
-Use with the option `-h` or `--help` to view all other available options.
+Use with the option `-h` or `--help` to view all other available options, or look at the file titled "help" in this repo.
 
 ## How do I run it?
 
-`py download.py`
+`py blackboard-crawler.py`
