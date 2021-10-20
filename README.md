@@ -17,7 +17,7 @@ Linux users should use their package managers to install `dialog`.
 MacOS users should do the same, e.g. by using `brew install dialog`.
 
 I am currently unsure how `dialog` can be installed on windows.
-Windows users will have to settle for selecting all modules unitl I find a cross platform solution or I find out how to install `dialog` on the OS.
+Windows users will have to settle for selecting all modules unitl I find a cross platform solution (PyInquirer looks good) or I find out how to install `dialog` on the OS.
 
 Windows users can also use the `--module-regex`/`--submodule-regex` options and then crawl for a similar effect.
 
