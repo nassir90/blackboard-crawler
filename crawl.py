@@ -100,10 +100,14 @@ async def traverse_list(page: Page, level: str):
     indices = {"files" : [], "videos" : [], "submodules" : []}
 
     content_root = page.url
+    s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', await page.cookies()))['value']
     
     for link, link_text, header in await page.JJeval("%(0)s .details a, %(0)s h3 a" % {'0' : CONTENT}, "links => links.map(a => [a.href, a.innerText, a.parentElement.tagName == 'H3'])"):
-        if "webapps" not in link:
-            indices["files"].append(await get_real_filename(link, await page.cookies(), level))
+        if "tcd.cloud.panopto.eu" in link:
+            indices["videos"].append({'name' : link_text, 'link' : await get_stream_url(link, page)})
+            await page.goto(content_root)
+        elif "webapps" not in link:
+            indices["files"].append(await get_real_filename(link, s_session_id, level))
         elif header and link not in page.url:
             print(level + "Descending into : '%s'" % link_text)
             await page.goto(link)
@@ -118,21 +122,22 @@ async def traverse_panopto_list(page: Page, level: str):
     print (level + "There are %d videos " % len(await page.JJ(PANOPTO_CONTENT)))
     for link, link_text in await page.JJeval(PANOPTO_CONTENT, "links => links.map(link => [link.href, link.innerText])"):
         if link_text and link:
-            if "instance=blackboard" not in link:
-                link += "&instance=blackboard" 
-
-            await page.goto(link)
-
-            response = await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
-            video = {'name': link_text, 'link' : (await response.json())['Delivery']['Streams'][0]['StreamUrl'] }
-
+            stream_url = get_stream_url(link, page)
+            video = {'name': link_text, 'link' : stream_url}
             indices["videos"].append(video)
 
     return indices
 
-async def get_real_filename(url: str, cookies: list, level: str):
+async def get_stream_url(link: str, page: Page):
+    if "instance=blackboard" not in link:
+        link += "&instance=blackboard" 
+
+    await page.goto(link)
+    response = await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
+    return (await response.json())['Delivery']['Streams'][0]['StreamUrl']
+
+async def get_real_filename(url: str, s_session_id: str, level: str):
     if "bbcswebdav" in url:
-        s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', cookies))['value']
         request = urllib.request.Request(url)
         request.add_header("Cookie", "s_session_id=" + s_session_id)
         try:

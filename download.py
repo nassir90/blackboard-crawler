@@ -54,9 +54,9 @@ def download_file(url: str, s_session_id: str, level: str):
     request = urllib.request.Request(url)
     request.add_header("Cookie", "s_session_id=" + s_session_id)
     try:
-        response = urllib.request.urlopen(request)
+        response = urllib.request.urlopen(request, timeout=3)
     except Exception as e:
-        print(level + str(e))
+        print(level + "└" + str(e))
         return
     output_file_path = os.path.basename(response.url)
     if not output_file_path:
