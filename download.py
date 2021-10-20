@@ -53,8 +53,14 @@ def download_panopto_stream(stream_url: str, link_text: str):
 def download_file(url: str, s_session_id: str, level: str):
     request = urllib.request.Request(url)
     request.add_header("Cookie", "s_session_id=" + s_session_id)
-    response = urllib.request.urlopen(request)
+    try:
+        response = urllib.request.urlopen(request)
+    except Exception as e:
+        print(level + str(e))
+        return
     output_file_path = os.path.basename(response.url)
+    if not output_file_path:
+        output_file_path = os.path.basename(response.url.strip("/"))
     temp_file_path = output_file_path + ".uncompleted-write"
 
     if not os.path.isfile(output_file_path):
@@ -67,18 +73,16 @@ def download_file(url: str, s_session_id: str, level: str):
     else:
         print(level + "└" + output_file_path + " exists. Not downloading!")
 
-    return response.url
-
 def download_submodule(submodule: dict, s_session_id: str, level: str):
     for file in submodule.get('files', []):
         print(level + "Downloading : " + file)
         download_file(file, s_session_id, level)
     for video in submodule.get('videos', []):
         print(level + "Downloading video '%s'" % video['name'])
-        #download_panopto_stream(video['link'])
+        download_panopto_stream(video['link'])
     for submodule in submodule.get('submodules', []):
         if submodule:
-            download_submodule(submodule, level + " ")
+            download_submodule(submodule, s_session_id, level + " ")
 
 def download(pruned_crawl_path: str, s_session_id: str):
     pruned_crawl_file = open(pruned_crawl_path, "r")

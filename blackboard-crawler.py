@@ -78,12 +78,13 @@ async def main():
             exit()
 
     print("Logged in!")
-    if not os.path.exists("crawl.json") or no_downloads or input("Crawl.json exists. Are you sure you want to regenerate the crawlfile? This will take some time: [y/n]") == "y":
+    if not os.path.exists("crawl.json") or no_downloads or input("Crawl.json exists.\n Regenerate? This will take some time. [y/n] ") == "y":
         await crawl(page, module_regex=module_regex, submodule_regex=submodule_regex)
         print("Regenerated 'crawl.json'")
 
     if not no_downloads:
-        prompt()
+        if not os.path.exists("pruned_crawl.json") or input("There is a pruned_crawl.json here.\n Regenerate? You will have to go through the prompt menu again. [y/n] ") == "y":
+            prompt()
         await page.reload()
         await page.waitFor(1000)
         s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', await page.cookies()))['value']
