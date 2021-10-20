@@ -83,12 +83,12 @@ async def main():
         print("Regenerated 'crawl.json'")
 
     if not no_downloads:
-        if not os.path.exists("pruned_crawl.json") or input("There is a pruned_crawl.json here.\n Regenerate? You will have to go through the prompt menu again. [y/n] ") == "y":
+        if not os.path.exists("choices.json") or input("There is a choices.json here.\n Regenerate? You will have to go through the prompt menu again. [y/n] ") == "y":
             prompt()
         await page.reload()
         await page.waitFor(1000)
         s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', await page.cookies()))['value']
-        download('pruned_crawl.json', s_session_id)
+        download('crawl.json', 'choices.json', s_session_id)
 
 asyncio.get_event_loop().run_until_complete(main())
 

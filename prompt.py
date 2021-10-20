@@ -15,7 +15,7 @@ def module_status(submodule_choices):
     else:
         return DOWNLOADING_PARTIALLY
 
-def prompt(input_path="crawl.json", output_path="pruned_crawl.json"):
+def prompt(input_path="crawl.json", output_path="choices.json"):
     json_file = open(input_path, "r")
     modules = json.load(json_file)
     json_file.close()
@@ -50,9 +50,4 @@ def prompt(input_path="crawl.json", output_path="pruned_crawl.json"):
                 for submodule in submodules:
                     submodules[submodule] = downloading
 
-    pruned_crawl = []
-
-    for module in modules:
-        pruned_crawl.append({'name' : module['name'], 'submodules' : list(filter(lambda submodule: module_choices[module['name']][submodule['name']] == True, module['submodules']))})
-
-    json.dump(pruned_crawl, open("pruned_crawl.json", "w"))
+    json.dump(module_choices, open(output_path, "w"))

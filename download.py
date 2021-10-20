@@ -84,9 +84,17 @@ def download_submodule(submodule: dict, s_session_id: str, level: str):
         if submodule:
             download_submodule(submodule, s_session_id, level + " ")
 
-def download(pruned_crawl_path: str, s_session_id: str):
-    pruned_crawl_file = open(pruned_crawl_path, "r")
-    pruned_crawl = json.load(pruned_crawl_file)
+def download(crawl_path: str, choices_path: str, s_session_id: str):
+    choices_file = open(choices_path, "r")
+    crawl_file = open(crawl_path, "r")
+    choices = json.load(choices_file)
+    modules = json.load(crawl_file)
+    choices_file.close()
+    crawl_file.close()
+
+    pruned_crawl = []
+    for module in modules:
+        pruned_crawl.append({'name' : module['name'], 'submodules' : list(filter(lambda submodule: choices[module['name']][submodule['name']] == True, module['submodules']))})
 
     os.chdir("downloads")
     downloads_dir = os.getcwd()
