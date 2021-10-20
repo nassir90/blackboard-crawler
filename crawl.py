@@ -2,8 +2,7 @@
 
 import asyncio
 import json
-import getpass
-import sys
+import re
 import pyppeteer
 import traceback
 from pyppeteer import launch
@@ -40,7 +39,7 @@ async def traverse_module(module_link: str, module_text: str, page: Page, submod
 
     
     for submodule_link, submodule_text in await page.JJeval(SUBMODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
-        if submodule_regex in submodule_text:
+        if re.match(submodule_regex, submodule_text):
             module["submodules"].append(await traverse_submodule(submodule_link, submodule_text, page))
 
     return module
@@ -59,7 +58,7 @@ async def crawl(page: Page, submodule_regex="", module_regex=""):
     print("HERE")
 
     for module_link, module_text in await page.JJeval(MODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
-        if module_regex in module_text:
+        if re.match(module_regex, module_text):
             modules.append(await traverse_module(module_link, module_text, page, submodule_regex=submodule_regex))
 
     crawlfile = open(crawlfile_path, "w")
