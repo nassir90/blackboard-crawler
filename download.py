@@ -54,7 +54,7 @@ def download_file(url: str, s_session_id: str, level: str):
     except Exception as e:
         print(level + "└" + str(e))
         return
-    output_file_path = os.path.basename(response.url)
+    output_file_path = os.path.basename(urllib.parse.unquote(response.url))
     if not output_file_path:
         output_file_path = os.path.basename(response.url.strip("/"))
     temp_file_path = output_file_path + ".uncompleted-write"
