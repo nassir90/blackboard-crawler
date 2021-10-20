@@ -19,6 +19,8 @@ MacOS users should do the same, e.g. by using `brew install dialog`.
 I am currently unsure how `dialog` can be installed on windows.
 Windows users will have to settle for selecting all modules unitl I find a cross platform solution or I find out how to install `dialog` on the OS.
 
+Windows users can also use the `--module-regex`/`--submodule-regex` options and then crawl for a similar effect.
+
 ## CLI Options
 
 Use with the option `-h` or `--help` to view all other available options, or look at the file titled "help" in this repo.
