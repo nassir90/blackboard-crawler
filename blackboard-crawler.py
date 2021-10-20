@@ -48,11 +48,9 @@ async def main():
     
     for o, a in opts:
         if o in ("-h", "--help"):
-            print("-h/--help - print this help menu")
-            print("-H/--headless - run in headless mode")
-            print("-0/-U/--update - regenerate the crawlfile and exit")
-            print("--module-regex - only crawl modules that match the regex")
-            print("--submodule-regex - only crawl submodules that match the regex")
+            h = open("help", "r")
+            print(h.read(), end="")
+            h.close()
             return
         elif o in ("-H", "--headless"):
             headless = True
@@ -91,11 +89,3 @@ async def main():
         download('crawl.json', 'choices.json', s_session_id)
 
 asyncio.get_event_loop().run_until_complete(main())
-
-# Will run three steps
-# Check if crawl.json is here
-# Prompt.should_recrawl?
-#   Login here if the user wants to recrawl
-# Prompt.pruned_crawlfile
-# Download(pruned_crawlfile)
-#  Login here if the user didn't recrawl

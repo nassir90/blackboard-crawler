@@ -1,0 +1,5 @@
+-h/--help - print this help menu
+-H/--headless - run in headless mode
+-0/-U/--update - regenerate the crawlfile and exit
+--module-regex - only crawl modules that match the regex
+--submodule-regex - only crawl submodules that match the regex
