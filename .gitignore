@@ -4,3 +4,4 @@ download.zip
 pruned_crawl.json
 choices.json
 __pycache__
+crawl.json
