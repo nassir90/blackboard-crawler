@@ -1,15 +1,11 @@
 import json
 import traceback
-import getpass
 import os
 import os.path
-import sys
-import pyppeteer
 import urllib.request
 import urllib.parse
 import re
 import ffmpeg
-import getopt
 
 current_output_dir = ""
 crawlfile_path = "crawl.json"
