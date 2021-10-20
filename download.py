@@ -14,7 +14,7 @@ import getopt
 current_output_dir = ""
 crawlfile_path = "crawl.json"
         
-def download_panopto_stream(stream_url: str, link_text: str):
+def download_panopto_stream(stream_url: str, link_text: str, level: str):
     master_response = urllib.request.urlopen(stream_url)
     master_data = master_response.read()
     master = master_data.decode('utf-8')
@@ -34,7 +34,7 @@ def download_panopto_stream(stream_url: str, link_text: str):
     total_parts = int(ts_files[-1].strip(".ts")) # Very hacky, may change later
     for ts_file in ts_files:
         if ts_file:
-            print('Downloading part %d/%d' % (int(ts_file.strip(".ts")),  total_parts))
+            print(level + 'Downloading part %d/%d' % (int(ts_file.strip(".ts")),  total_parts))
             part_url = re.sub(r"master\.m3u8.*", first_master_entry.split('/')[0] + '/' + ts_file, stream_url)
             part_response = urllib.request.urlopen(part_url)
             output_ts.write(part_response.read())
@@ -79,7 +79,7 @@ def download_submodule(submodule: dict, s_session_id: str, level: str):
         download_file(file, s_session_id, level)
     for video in submodule.get('videos', []):
         print(level + "Downloading video '%s'" % video['name'])
-        download_panopto_stream(video['link'])
+        download_panopto_stream(video['link'], video['name'], level + " ")
     for submodule in submodule.get('submodules', []):
         if submodule:
             download_submodule(submodule, s_session_id, level + " ")
@@ -99,7 +99,7 @@ def download(crawl_path: str, choices_path: str, s_session_id: str):
     os.chdir("downloads")
     downloads_dir = os.getcwd()
     for module in pruned_crawl:
-        print("Downloading module '%s'" % module)
+        print("Downloading module '%s'" % module['name'])
         os.chdir(module['name'])
         for submodule in module['submodules']:
             print(" Downloading submodule '%s'" % submodule['name'])
