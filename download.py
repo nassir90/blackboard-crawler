@@ -87,7 +87,7 @@ def download(pruned_crawl_path: str, s_session_id: str):
     os.chdir("downloads")
     downloads_dir = os.getcwd()
     for module in pruned_crawl:
-        print("Downloading module '%s'" % module['name'])
+        print("Downloading module '%s'" % module)
         os.chdir(module['name'])
         for submodule in module['submodules']:
             print(" Downloading submodule '%s'" % submodule['name'])

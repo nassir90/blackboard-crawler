@@ -2,6 +2,7 @@ import asyncio
 import os
 from crawl import crawl
 from download import download
+from prompt import prompt
 import pyppeteer
 from pyppeteer import launch
 from pyppeteer.page import Page
@@ -82,10 +83,11 @@ async def main():
         print("Regenerated 'crawl.json'")
 
     if not no_downloads:
+        prompt()
         await page.reload()
         await page.waitFor(1000)
         s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', await page.cookies()))['value']
-        download('crawl.json', s_session_id)
+        download('pruned_crawl.json', s_session_id)
 
 asyncio.get_event_loop().run_until_complete(main())
 

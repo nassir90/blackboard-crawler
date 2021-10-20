@@ -33,7 +33,7 @@ async def traverse_module(module_link: str, module_text: str, page: Page, submod
     await page.goto(module_link)
     
     try:
-        await page.waitForSelector(SUBMODULE_LINK, timeout=1000)
+        await page.waitForSelector(SUBMODULE_LINK, timeout=5000)
     except:
         print("John Waldon Moment 🗿")
         return module
@@ -48,7 +48,6 @@ async def traverse_module(module_link: str, module_text: str, page: Page, submod
 async def crawl(page: Page, submodule_regex="", module_regex=""):
     modules = []
 
-    await page.waitFor(1000)
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
     
     print("Here")
@@ -116,7 +115,6 @@ async def traverse_list(page: Page, level: str):
 async def traverse_panopto_list(page: Page, level: str):
     indices = { "files": [], "videos": [], "submodules": [] }
     await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
-    await page.waitFor(1000)
     print (level + "There are %d videos " % len(await page.JJ(PANOPTO_CONTENT)))
     for link, link_text in await page.JJeval(PANOPTO_CONTENT, "links => links.map(link => [link.href, link.innerText])"):
         if link_text and link:
