@@ -96,10 +96,11 @@ async def traverse_list(page: Page, level: str):
     
     for link, link_text, header in await page.JJeval("%(0)s .details a, %(0)s h3 a" % {'0' : CONTENT}, "links => links.map(a => [a.href, a.innerText, a.parentElement.tagName == 'H3'])"):
         if "tcd.cloud.panopto.eu" in link:
+            print(level + "Found video : 's'" % link_text)
             try:
                 stream_url = await get_stream_url(link, page)
             except Exception as e:
-                print(level + "└Failed to get master.m3u8 for video: " + str(e))
+                print(level + "└Failed to get master.m3u8 for video: " + link)
                 continue
             indices["videos"].append({'name' : link_text, 'link' : stream_url})
             await page.goto(content_root)
@@ -144,5 +145,5 @@ async def get_real_filename(url: str, s_session_id: str, level: str):
         except Exception as e:
             print(level + str(e))
     
-    print(level + "Found : " + url)
+    print(level + "Found file : " + url)
     return url
