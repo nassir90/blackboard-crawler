@@ -22,7 +22,6 @@ CONTENT_LINK = CONTENT_BODY_LINK + "," + CONTENT_HEADER_LINK
 PANOPTO_CONTENT = "a.detail-title"
 
 crawlfile_path = "crawl.json"
-agreed_to_cookies = False
 
 async def traverse_module(module_link: str, module_text: str, page: Page, submodule_regex=""):
     module = {"name" : module_text, "link" : module_link, "submodules" : []};
@@ -48,14 +47,8 @@ async def crawl(page: Page, submodule_regex="", module_regex=""):
     modules = []
 
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
-    
-    print("Here")
-
     await page.waitForSelector("#agree_button", timeout=3000)
     await page.click("#agree_button") # Need to accept privacy policy
-    agreed_to_cookies = True
-    
-    print("HERE")
 
     for module_link, module_text in await page.JJeval(MODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
         if re.match(module_regex, module_text):
