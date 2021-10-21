@@ -96,7 +96,7 @@ async def traverse_list(page: Page, level: str):
     
     for link, link_text, header in await page.JJeval("%(0)s .details a, %(0)s h3 a" % {'0' : CONTENT}, "links => links.map(a => [a.href, a.innerText, a.parentElement.tagName == 'H3'])"):
         if "tcd.cloud.panopto.eu" in link:
-            print(level + "Found video : 's'" % link_text)
+            print(level + "Found video : '%s' at '%s'" % (link_text, link))
             try:
                 stream_url = await get_stream_url(link, page)
             except Exception as e:
