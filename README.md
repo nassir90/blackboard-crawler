@@ -20,6 +20,7 @@ I am currently unsure how `dialog` can be installed on windows.
 Windows users will have to settle for selecting all modules unitl I find a cross platform solution (PyInquirer looks good) or I find out how to install `dialog` on the OS.
 
 Windows users can also use the `--module-regex`/`--submodule-regex` options and then crawl for a similar effect.
+Note that the choices.json file produced after selecting all modules is very easy to manipulate, so modifying it by hand is also an option.
 
 ## CLI Options
 
