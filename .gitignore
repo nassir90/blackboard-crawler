@@ -2,6 +2,7 @@ downloads
 download.zip
 *.swp
 pruned_crawl.json
+crawl.json
 choices.json
 __pycache__
 crawl.json
