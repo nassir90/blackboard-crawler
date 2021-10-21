@@ -96,7 +96,12 @@ async def traverse_list(page: Page, level: str):
     
     for link, link_text, header in await page.JJeval("%(0)s .details a, %(0)s h3 a" % {'0' : CONTENT}, "links => links.map(a => [a.href, a.innerText, a.parentElement.tagName == 'H3'])"):
         if "tcd.cloud.panopto.eu" in link:
-            indices["videos"].append({'name' : link_text, 'link' : await get_stream_url(link, page)})
+            try:
+                stream_url = await get_stream_url(link, page)
+            except Exception as e:
+                print(level + "└Failed to get master.m3u8 for video: " + str(e))
+                continue
+            indices["videos"].append({'name' : link_text, 'link' : stream_url})
             await page.goto(content_root)
         elif "webapps" not in link:
             indices["files"].append(await get_real_filename(link, s_session_id, level))
@@ -120,6 +125,7 @@ async def traverse_panopto_list(page: Page, level: str):
 
     return indices
 
+# This may raise KeyError if the JSON returned is invalid
 async def get_stream_url(link: str, page: Page):
     if "instance=blackboard" not in link:
         link += "&instance=blackboard" 
