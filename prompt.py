@@ -1,5 +1,6 @@
 from __future__ import print_function, unicode_literals
-from PyInquirer import prompt, print_json
+from PyInquirer import prompt as iprompt, print_json, Separator
+import re
 import json
 
 NOT_DOWNLOADING = "Not Downloading"
@@ -25,17 +26,38 @@ def prompt(input_path="crawl.json", output_path="choices.json"):
     # Submodule entries are associated with a boolean which indicates whether the submodule is to be downloaded or not.
     module_choices = { module["name"] : {  submodule["name"] : True for submodule in module["submodules"] } for module in modules}
 
-    questions = [
-        {
-            'type' : 'input',
-            'name' : 'first_name',
-            'message' : 'What\'s your first name?'
-        }
-    ]
+    while True:
+        questions = [
+            {
+                'type' : 'list',
+                'name' : 'selected_module',
+                'message' : 'What module do you wish to configure?',
+                'choices' : ["%s (%s)" % (module, module_status(submodule_choices)) for module, submodule_choices in module_choices.items()] + [Separator(), 'Finish']
+            }
+        ]
 
-    answers = prompt(questions)
-    print_json(answers)
+        selected_module = iprompt(questions)['selected_module']
 
+        if selected_module == 'Finish':
+            break
 
+        module = re.sub(r' \(.*\)', '', selected_module)
+        submodule_choices = module_choices[module]
 
+        submodule_questions = [ 
+            {
+                'type' : 'checkbox',
+                'name' : 'selected_submodules',
+                'message' : 'What submodules would you like to download?',
+                'choices' : [ { 'name' : submodule_name, 'checked' : submodule_choices[submodule_name]} for submodule_name in submodule_choices]
+            }
+        ]
 
+        selected_submodules = iprompt(submodule_questions)['selected_submodules']
+        for submodule_name in submodule_choices:
+            submodule_choices[submodule_name] = False
+        for submodule_name in selected_submodules:
+            submodule_choices[submodule_name] = True
+
+    json.dump(module_choices, open(output_path, 'w'))
+    
