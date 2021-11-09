@@ -1,3 +1,5 @@
 ffmpeg_python==0.2.0
 pyppeteer==0.2.6
 pythondialog
+prompt_toolkit==1.0.14
+PyInquirer
