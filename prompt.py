@@ -1,5 +1,6 @@
+from __future__ import print_function, unicode_literals
+from PyInquirer import prompt, print_json
 import json
-from dialog import Dialog
 
 NOT_DOWNLOADING = "Not Downloading"
 DOWNLOADING = "Downloading Fully"
@@ -20,43 +21,21 @@ def prompt(input_path="crawl.json", output_path="choices.json"):
     modules = json.load(json_file)
     json_file.close()
 
+    # A dictionary containing module entries, which contain submodule entries.
+    # Submodule entries are associated with a boolean which indicates whether the submodule is to be downloaded or not.
     module_choices = { module["name"] : {  submodule["name"] : True for submodule in module["submodules"] } for module in modules}
 
-    try:
-        d = Dialog(dialog="dialog")
-    except Exception as e:
-        print("An error occured: " + str(e))
-        print("Perhaps dialog is not installed")
-        if input(" Use default module choices? [y/n] ") == "y":
-            json.dump(module_choices, open(output_path, "w"))
-            return
-        else:
-            exit(1)
+    questions = [
+        {
+            'type' : 'input',
+            'name' : 'first_name',
+            'message' : 'What\'s your first name?'
+        }
+    ]
 
-    while True:
-        choices = [(module_name, module_status(module)) for module_name, module in module_choices.items()]
-        code, choice = d.menu("What modules are you downloading?", width=100, choices=choices)
+    answers = prompt(questions)
+    print_json(answers)
 
-        if code != d.OK:
-            break
 
-        code, response = d.menu(choice, choices=[(DOWNLOADING, ""), (DOWNLOADING_PARTIALLY, ""), (NOT_DOWNLOADING, "")])
-        if code == d.OK:
-            submodules = module_choices[choice]
-            if response == DOWNLOADING_PARTIALLY:
-                while True:
-                    code, submodule = d.menu("What submodules are you downloading?", choices=[(name, DOWNLOADING if downloading else NOT_DOWNLOADING) for name, downloading in module_choices[choice].items()])
-                    if code == d.OK:
-                        code, response = d.menu(choice, choices=[(DOWNLOADING, ""), (NOT_DOWNLOADING, "")])
-                        if code == d.OK:
-                            if response == DOWNLOADING:
-                                submodules[submodule] = True
-                            else:
-                                submodules[submodule] = False
-                    else:
-                        break
-            else:
-                for submodule in submodules:
-                    submodules[submodule] = response == DOWNLOADING
 
-    json.dump(module_choices, open(output_path, "w"))
+
