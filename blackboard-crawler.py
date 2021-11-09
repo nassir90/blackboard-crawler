@@ -10,7 +10,7 @@ import getpass
 import getopt
 import sys
 
-async def try_login(page: Page):
+async def try_login(page: Page, username, password):
     await page.goto('https://tcd.blackboard.com/webapps/bb-auth-provider-shibboleth-BBLEARN/execute/shibbolethLogin?authProviderId=_102_1')
 
     await page.waitForSelector('#username')
@@ -19,7 +19,7 @@ async def try_login(page: Page):
     await page.keyboard.press('KeyA')
     await page.keyboard.up('Control')
     await page.keyboard.press('Backspace')
-    await page.type('#username', input('TCD Username: '))
+    await page.type('#username', username)
 
     await page.waitForSelector('#password')
     await page.focus('#password')
@@ -27,7 +27,7 @@ async def try_login(page: Page):
     await page.keyboard.press('KeyA')
     await page.keyboard.up('Control')
     await page.keyboard.press('Backspace')
-    await page.type('#password', getpass.getpass('TCD Password: '))
+    await page.type('#password', password)
 
     await page.click('.form-button')
     
@@ -75,14 +75,20 @@ async def main():
 
     failed_attempts = 0
 
-    while not await try_login(page):
-        failed_attempts += 1
-        print("Failed to login. ", end="")
-        if failed_attempts < 3:
-            print("Try again")
-        else:
-            print("Exceeded maximum attempts")
+    if os.path.isfile('./credentials'):
+        credentials = open('./credentials', 'r').read().split('\n')
+        if not await try_login(page, credentials[0], credentials[1]):
+            print('The credentials contained in the credentials file are invalid')
             exit()
+    else:
+        while not await try_login(page, input('TCD Username: '), getpass.getpass('TCD Password: ')):
+            failed_attempts += 1
+            print("Failed to login. ", end="")
+            if failed_attempts < 3:
+                print("Try again")
+            else:
+                print("Exceeded maximum attempts")
+                exit()
 
     print("Logged in!")
     if should_crawl == None:
