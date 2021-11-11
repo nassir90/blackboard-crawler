@@ -11,8 +11,6 @@ from pyppeteer.network_manager import Response
 import urllib.request
 import getopt
 
-pyppeteer.DEBUG = True  
-
 MODULE_LINK = ".courseListing > li > a"
 SUBMODULE_LINK = "#courseMenuPalette_contents li a"
 CONTENT = "#content_listContainer > li"
@@ -119,8 +117,11 @@ async def traverse_list(page: Page, level: str):
     return indices
 
 async def traverse_panopto_list(page: Page, level: str):
+    await page.waitFor(3000)
     indices = { "files": [], "videos": [], "submodules": [] }
-    await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
+
+    folders = await page.JJ(PANOPTO_SUBFOLDER)
+    print(level + 'There are %d folders' % len(folders))
     links = await page.JJeval(PANOPTO_CONTENT, "links => links.map(link => [link.href, link.innerText])")
     print (level + "There are %d videos " % len(links))
     aspxauth = next(cookie['value'] for cookie in await page.cookies() if cookie['name'] == '.ASPXAUTH')
