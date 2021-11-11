@@ -10,6 +10,8 @@ import getpass
 import getopt
 import sys
 
+from blackboard_crawler_constants import VALID_TYPES
+
 async def try_login(page: Page, username, password):
     await page.goto('https://tcd.blackboard.com/webapps/bb-auth-provider-shibboleth-BBLEARN/execute/shibbolethLogin?authProviderId=_102_1')
 
@@ -39,7 +41,7 @@ async def try_login(page: Page, username, password):
     return False
 
 async def main():
-    opts, args = getopt.getopt(sys.argv[1:], "hHp", ["help", "headless", "no-indices", "module-regex=", "submodule-regex=", "crawl=", "prompt=", "download="])
+    opts, args = getopt.getopt(sys.argv[1:], "hHp", ["help", "headless", "no-indices", "module-regex=", "submodule-regex=", "crawl=", "prompt=", "download=", "include-type=", "exclude-type="])
 
     headless = False
     no_downloads = False
@@ -48,6 +50,7 @@ async def main():
     should_crawl = None
     should_prompt = None
     should_download = None
+    type_choices = {t : True for t in VALID_TYPES}
     
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -69,6 +72,10 @@ async def main():
             should_prompt = a == 'yes'
         elif o == "--download":
             should_download = a == 'yes'
+        elif o == '--include-type':
+            type_choices = { t : t in a.split(',') for t in VALID_TYPES }
+        elif o == '--exclude-type':
+            type_choices = { t : t not in a.split(',') for t in VALID_TYPES }
 
     browser = await launch(headless=headless, args=['--no-sandbox',  '--disable-setuid-sandbox'])
     page = await browser.newPage()
@@ -100,7 +107,7 @@ async def main():
     if should_prompt == None:
         should_prompt = not os.path.exists("choices.json") or input("There is a choices.json here.\n Regenerate? You will have to go through the prompt menu again. [y/n] ") == "y"
     if should_prompt:
-        prompt()
+        prompt(type_choices)
 
     if should_download == None:
         should_download = input("Download files?\n Download? [y/n] ") == 'y'
@@ -108,7 +115,7 @@ async def main():
         await page.reload()
         await page.waitFor(1000)
         s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', await page.cookies()))['value']
-        download('crawl.json', 'choices.json', s_session_id)
+        download('crawl.json', 'choices.json', s_session_id, type_choices=type_choices)
 
 debug = os.environ.get('DEBUG_BLACKBOARD_CRAWLER')
 
