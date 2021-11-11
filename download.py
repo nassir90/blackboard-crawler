@@ -70,12 +70,14 @@ def download_file(url: str, s_session_id: str, level: str):
         print(level + "└" + output_file_path + " exists. Not downloading!")
 
 def download_submodule(submodule: dict, s_session_id: str, level: str, type_choices: dict):
-    for file in submodule.get('files', []):
-        print(level + "Downloading : " + file)
-        download_file(file, s_session_id, level)
-    for video in submodule.get('videos', []):
-        print(level + "Downloading video '%s'" % video['name'])
-        download_panopto_stream(video['link'], video['name'], level + " ")
+    if type_choices['documents'] | type_choices['other']:
+        for file in submodule.get('files', []):
+            print(level + "Downloading : " + file)
+            download_file(file, s_session_id, level)
+    if type_choices['videos']:
+        for video in submodule.get('videos', []):
+            print(level + "Downloading video '%s'" % video['name'])
+            download_panopto_stream(video['link'], video['name'], level + " ")
     for submodule in submodule.get('submodules', []):
         if submodule:
             download_submodule(submodule, s_session_id, level + " ")
