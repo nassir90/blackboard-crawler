@@ -48,8 +48,8 @@ async def crawl(page: Page, submodule_regex="", module_regex=""):
     await page.goto("https://tcd.blackboard.com/webapps/portal/execute/tabs/tabAction?tab_tab_group_id=_2_1")
     await page.waitForSelector("#agree_button", timeout=3000)
     await page.click("#agree_button") # Need to accept privacy policy
+    await page.waitForSelector(MODULE_LINK) # Necessary
 
-    # IF THIS ITERATOR IS EMPTY THE CRAWL.JSON WILL NOT BE GENERATED
     for module_link, module_text in await page.JJeval(MODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
         if re.search(module_regex, module_text):
             modules.append(await traverse_module(module_link, module_text, page, submodule_regex=submodule_regex))
