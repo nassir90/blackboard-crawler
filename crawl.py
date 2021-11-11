@@ -19,7 +19,8 @@ CONTENT = "#content_listContainer > li"
 CONTENT_HEADER_LINK = "h3 a"
 CONTENT_BODY_LINK = ".details a"
 CONTENT_LINK = CONTENT_BODY_LINK + "," + CONTENT_HEADER_LINK
-PANOPTO_CONTENT = "a.detail-title"
+PANOPTO_CONTENT = ".content-table a.detail-title"
+PANOPTO_SUBFOLDER = ".subfolder-item"
 
 crawlfile_path = "crawl.json"
 
@@ -84,7 +85,7 @@ async def index(page: Page, level: str):
     if "/listContent" in page.url:
         return await traverse_list(page, level)
     elif "/ppto-PanoptoCourseTool-BBLEARN" in page.url:
-        await page.goto(await page.Jeval("iframe", "iframe => iframe.src"))
+        await page.goto(await page.Jeval("iframe", "iframe => iframe.src") + '&maxResults=250')
         return await traverse_panopto_list(page, level)
     else:
         print(level + "Unsupported content type")
@@ -94,13 +95,14 @@ async def traverse_list(page: Page, level: str):
     indices = {"files" : [], "videos" : [], "submodules" : []}
 
     content_root = page.url
-    s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', await page.cookies()))['value']
+    s_session_id = next(cookie['value'] for cookie in await page.cookies() if cookie['name'] == 's_session_id')
     
     for link, link_text, header in await page.JJeval("%(0)s .details a, %(0)s h3 a" % {'0' : CONTENT}, "links => links.map(a => [a.href, a.innerText, a.parentElement.tagName == 'H3'])"):
         if "tcd.cloud.panopto.eu" in link:
             print(level + "Found video : '%s' at '%s'" % (link_text, link))
             try:
-                stream_url = await get_stream_url(link, page)
+                aspxauth = next(cookie['value'] for cookie in await page.cookies() if cookie['name'] == '.ASPXAUTH')
+                stream_url = get_stream_url(link, aspxauth)
             except Exception as e:
                 print(level + "└Failed to get master.m3u8 for video: " + link)
                 continue
@@ -119,31 +121,34 @@ async def traverse_list(page: Page, level: str):
 async def traverse_panopto_list(page: Page, level: str):
     indices = { "files": [], "videos": [], "submodules": [] }
     await page.waitForSelector(PANOPTO_CONTENT, timeout=5000)
-    print (level + "There are %d videos " % len(await page.JJ(PANOPTO_CONTENT)))
-    for link, link_text in await page.JJeval(PANOPTO_CONTENT, "links => links.map(link => [link.href, link.innerText])"):
+    links = await page.JJeval(PANOPTO_CONTENT, "links => links.map(link => [link.href, link.innerText])")
+    print (level + "There are %d videos " % len(links))
+    aspxauth = next(cookie['value'] for cookie in await page.cookies() if cookie['name'] == '.ASPXAUTH')
+    for link, link_text in links:
         if link_text and link:
-            stream_url = get_stream_url(link, page)
+            print(level + 'Found video \'%s\'' % link_text)
+            stream_url = get_stream_url(link, aspxauth)
             video = {'name': link_text, 'link' : stream_url}
-            indices["videos"].append(video)
+            indices['videos'].append(video)
 
     return indices
 
-# This may raise KeyError if the JSON returned is invalid
-async def get_stream_url(link: str, page: Page):
-    if "instance=blackboard" not in link:
-        link += "&instance=blackboard" 
-
-    await page.goto(link)
-    response = await page.waitForResponse('https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx')
-    return (await response.json())['Delivery']['Streams'][0]['StreamUrl']
+def get_stream_url(link: str, aspxauth: str):
+    delivery_id = re.search('(?<=id=)[^&]*', link).group(0)
+    request = urllib.request.Request(
+        'https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx',
+        data=urllib.parse.urlencode({'deliveryId':delivery_id, 'responseType':'json'}).encode()
+    )
+    request.add_header("Cookie", ".ASPXAUTH="+aspxauth)
+    response = urllib.request.urlopen(request, timeout=2)
+    return json.load(response)['Delivery']['Streams'][0]['StreamUrl'] # This may raise KeyError if the JSON returned is invalid
 
 async def get_real_filename(url: str, s_session_id: str, level: str):
     if "bbcswebdav" in url:
         request = urllib.request.Request(url)
         request.add_header("Cookie", "s_session_id=" + s_session_id)
         try:
-            response = urllib.request.urlopen(request, timeout=5)
-            url = response.url
+            url = response = urllib.request.urlopen(request, timeout=1).url
         except Exception as e:
             print(level + str(e))
     
