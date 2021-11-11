@@ -82,7 +82,7 @@ def download_submodule(submodule: dict, s_session_id: str, level: str, type_choi
         if submodule:
             download_submodule(submodule, s_session_id, level + " ")
 
-def download(crawl_path: str, choices_path: str, s_session_id: str):
+def download(crawl_path: str, choices_path: str, s_session_id: str, type_choices: dict):
     choices_file = open(choices_path, "r")
     crawl_file = open(crawl_path, "r")
     choices = json.load(choices_file)
@@ -90,7 +90,7 @@ def download(crawl_path: str, choices_path: str, s_session_id: str):
     choices_file.close()
     crawl_file.close()
     module_choices = choices['module_choices']
-    type_choices = chocies['type_choices']
+    type_choices = choices['type_choices']
 
     pruned_crawl = []
     for module in modules:
@@ -107,5 +107,5 @@ def download(crawl_path: str, choices_path: str, s_session_id: str):
         os.chdir(module['name'])
         for submodule in module['submodules']:
             print(" Downloading submodule '%s'" % submodule['name'])
-            download_submodule(submodule, s_session_id, "  ", type_choices=type_choices)
+            download_submodule(submodule, s_session_id, "  ", type_choices)
         os.chdir(downloads_dir)
