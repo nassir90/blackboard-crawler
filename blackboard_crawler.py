@@ -110,9 +110,9 @@ async def main():
         s_session_id = next(filter(lambda cookie: cookie['name'] == 's_session_id', await page.cookies()))['value']
         download('crawl.json', 'choices.json', s_session_id)
 
-debug = True
+debug = os.environ.get('DEBUG_BLACKBOARD_CRAWLER')
 
-if debug:
+if debug == '1':
     import pdb
     pdb.run('asyncio.get_event_loop().run_until_complete(main())')
 else:

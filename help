@@ -5,3 +5,5 @@
 --download [yes/no] -- force or prevent downloading of files
 --module-regex - only crawl modules that match the regex
 --submodule-regex - only crawl submodules that match the regex
+
+Run with the environment variable DEBUG_BLACKBOARD_CRAWLER set to 1 to run with pdb.
