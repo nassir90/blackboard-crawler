@@ -21,10 +21,12 @@ def prompt(input_path="crawl.json", output_path="choices.json"):
     json_file = open(input_path, "r")
     modules = json.load(json_file)
     json_file.close()
-
-    # A dictionary containing module entries, which contain submodule entries.
+    # Dictionary containing module entries, which contain submodule entries.
     # Submodule entries are associated with a boolean which indicates whether the submodule is to be downloaded or not.
     module_choices = { module["name"] : {  submodule["name"] : True for submodule in module["submodules"] } for module in modules}
+    type_choices = { t : True for t in ['videos', 'documents', 'other'] }
+
+    last_selection = ""
 
     while True:
         questions = [
@@ -32,32 +34,48 @@ def prompt(input_path="crawl.json", output_path="choices.json"):
                 'type' : 'list',
                 'name' : 'selected_module',
                 'message' : 'What module do you wish to configure?',
-                'choices' : ["%s (%s)" % (module, module_status(submodule_choices)) for module, submodule_choices in module_choices.items()] + [Separator(), 'Finish']
+                'choices' : ['Configure Types of File to Download', Separator()] + ["%s (%s)" % (module, module_status(submodule_choices)) for module, submodule_choices in module_choices.items()] + [Separator(), 'Finish']
             }
         ]
 
         selected_module = iprompt(questions)['selected_module']
 
-        if selected_module == 'Finish':
+        if 'Finish' == selected_module:
             break
+        elif 'Configure Types' in selected_module:
+            type_questions = [
+                {
+                    'type' : 'checkbox',
+                    'name' : 'selected_types',
+                    'message' : 'Select types',
+                    'choices' : [ {'name' : t, 'checked' : type_choices[t] } for t in type_choices ]
+                }
+            ]
 
-        module = re.sub(r' \(.*\)', '', selected_module)
-        submodule_choices = module_choices[module]
+            selected_types = iprompt(type_questions)['selected_types']
 
-        submodule_questions = [ 
-            {
-                'type' : 'checkbox',
-                'name' : 'selected_submodules',
-                'message' : 'What submodules would you like to download?',
-                'choices' : [ { 'name' : submodule_name, 'checked' : submodule_choices[submodule_name]} for submodule_name in submodule_choices]
-            }
-        ]
+            for t in type_choices:
+                type_choices[t] = False
+            for t in selected_types:
+                type_choices[t] = True
+        else:
+            module = re.sub(r' \(.*\)', '', selected_module)
+            submodule_choices = module_choices[module]
 
-        selected_submodules = iprompt(submodule_questions)['selected_submodules']
-        for submodule_name in submodule_choices:
-            submodule_choices[submodule_name] = False
-        for submodule_name in selected_submodules:
-            submodule_choices[submodule_name] = True
+            submodule_questions = [ 
+                {
+                    'type' : 'checkbox',
+                    'name' : 'selected_submodules',
+                    'message' : 'What submodules would you like to download?',
+                    'choices' : [ { 'name' : submodule_name, 'checked' : submodule_choices[submodule_name]} for submodule_name in submodule_choices]
+                }
+            ]
 
-    json.dump(module_choices, open(output_path, 'w'))
+            selected_submodules = iprompt(submodule_questions)['selected_submodules']
+            for submodule_name in submodule_choices:
+                submodule_choices[submodule_name] = False
+            for submodule_name in selected_submodules:
+                submodule_choices[submodule_name] = True
+
+    json.dump({ 'module_choices' : module_choices, 'type_choices' : type_choices}, open(output_path, 'w'))
     
