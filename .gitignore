@@ -1,7 +1,7 @@
 downloads
 download.zip
 *.swp
-crawl.json
+*crawl.json
 choices.json
 __pycache__
 credentials
