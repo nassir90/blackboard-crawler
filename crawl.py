@@ -33,9 +33,8 @@ async def traverse_module(module_link: str, module_text: str, page: Page, submod
     try:
         await page.waitForSelector(SUBMODULE_LINK, timeout=5000)
     except:
-        print("John Waldon Moment 🗿")
-        return module
-
+        print("John Waldron Moment 🗿")
+	return
     
     for submodule_link, submodule_text in await page.JJeval(SUBMODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
         if re.match(submodule_regex, submodule_text):
@@ -52,7 +51,9 @@ async def crawl(page: Page, submodule_regex="", module_regex=""):
 
     for module_link, module_text in await page.JJeval(MODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
         if re.match(module_regex, module_text):
-            modules.append(await traverse_module(module_link, module_text, page, submodule_regex=submodule_regex))
+	    module = await traverse_module(module_link, module_text, page, submodule_regex=submodule_regex)
+	    if module:
+      	        modules.append(module)
 
     crawlfile = open(crawlfile_path, "w")
     json.dump(modules, crawlfile)
