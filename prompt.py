@@ -2,6 +2,7 @@ from __future__ import print_function, unicode_literals
 from PyInquirer import prompt as iprompt, print_json, Separator
 import re
 import json
+from blackboard_crawler_constants import VALID_TYPES
 
 NOT_DOWNLOADING = "Not Downloading"
 DOWNLOADING = "Downloading Fully"
@@ -17,14 +18,13 @@ def module_status(submodule_choices):
     else:
         return DOWNLOADING_PARTIALLY
 
-def prompt(input_path="crawl.json", output_path="choices.json"):
+def prompt(type_choices, input_path="crawl.json", output_path="choices.json"):
     json_file = open(input_path, "r")
     modules = json.load(json_file)
     json_file.close()
     # Dictionary containing module entries, which contain submodule entries.
     # Submodule entries are associated with a boolean which indicates whether the submodule is to be downloaded or not.
     module_choices = { module["name"] : {  submodule["name"] : True for submodule in module["submodules"] } for module in modules}
-    type_choices = { t : True for t in ['videos', 'documents', 'other'] }
 
     last_selection = ""
 
