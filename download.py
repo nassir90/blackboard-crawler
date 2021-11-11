@@ -69,7 +69,7 @@ def download_file(url: str, s_session_id: str, level: str):
     else:
         print(level + "└" + output_file_path + " exists. Not downloading!")
 
-def download_submodule(submodule: dict, s_session_id: str, level: str):
+def download_submodule(submodule: dict, s_session_id: str, level: str, type_choices: dict):
     for file in submodule.get('files', []):
         print(level + "Downloading : " + file)
         download_file(file, s_session_id, level)
@@ -87,10 +87,12 @@ def download(crawl_path: str, choices_path: str, s_session_id: str):
     modules = json.load(crawl_file)
     choices_file.close()
     crawl_file.close()
+    module_choices = choices['module_choices']
+    type_choices = chocies['type_choices']
 
     pruned_crawl = []
     for module in modules:
-        pruned_crawl.append({'name' : module['name'], 'submodules' : list(filter(lambda submodule: choices[module['name']][submodule['name']] == True, module['submodules']))})
+        pruned_crawl.append({'name' : module['name'], 'submodules' : [submodule for submodule in module['submodules'] if module_choices[module['name']][submodule['name']]] })
 
     if not os.path.exists("downloads"):
         os.mkdir("downloads")
@@ -103,5 +105,5 @@ def download(crawl_path: str, choices_path: str, s_session_id: str):
         os.chdir(module['name'])
         for submodule in module['submodules']:
             print(" Downloading submodule '%s'" % submodule['name'])
-            download_submodule(submodule, s_session_id, "  ")
+            download_submodule(submodule, s_session_id, "  ", type_choices=type_choices)
         os.chdir(downloads_dir)
