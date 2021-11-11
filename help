@@ -1,9 +1,16 @@
 -h/--help - print this help menu
 -H/--headless - run in headless mode
---crawl [yes/no] -- force or prevent regeneration of crawl.json
---prompt [yes/no] -- force or prevent regeneration of choices.json
---download [yes/no] -- force or prevent downloading of files
+--crawl [yes|no] -- force or prevent regeneration of crawl.json
+--prompt [yes|no] -- force or prevent regeneration of choices.json
+--download [yes|no] -- force or prevent downloading of files
 --module-regex - only crawl modules that match the regex
 --submodule-regex - only crawl submodules that match the regex
+--exclude-type/include-type [type...]
+    where type is one of:
+        video -- panopto videos and mp4s
+        document -- pdfs, pptx files .etc
+        other -- any other type of file
+    Note that these two options are mutually exclusive
+    Also note that they are unimplemented :)
 
 Run with the environment variable DEBUG_BLACKBOARD_CRAWLER set to 1 to run with pdb.
