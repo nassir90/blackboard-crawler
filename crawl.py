@@ -37,7 +37,7 @@ async def traverse_module(module_link: str, module_text: str, page: Page, submod
 	return
     
     for submodule_link, submodule_text in await page.JJeval(SUBMODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
-        if re.match(submodule_regex, submodule_text):
+        if re.search(submodule_regex, submodule_text):
             module["submodules"].append(await traverse_submodule(submodule_link, submodule_text, page))
 
     return module
@@ -50,10 +50,12 @@ async def crawl(page: Page, submodule_regex="", module_regex=""):
     await page.click("#agree_button") # Need to accept privacy policy
 
     for module_link, module_text in await page.JJeval(MODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
-        if re.match(module_regex, module_text):
-	    module = await traverse_module(module_link, module_text, page, submodule_regex=submodule_regex)
-	    if module:
-      	        modules.append(module)
+<<<<<<< HEAD
+        if re.search(module_regex, module_text):
+            modules.append(await traverse_module(module_link, module_text, page, submodule_regex=submodule_regex))
+        else:
+            print("'%s' does not match '%s', ignoring" % (module_regex, module_text))
+>>>>>>> ffc2829020ca3261505eda81502e59a03d8878f0
 
     crawlfile = open(crawlfile_path, "w")
     json.dump(modules, crawlfile)
