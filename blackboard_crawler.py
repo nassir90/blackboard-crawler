@@ -121,6 +121,7 @@ debug = os.environ.get('DEBUG_BLACKBOARD_CRAWLER')
 
 if debug == '1':
     import pdb
+    pyppeteer.DEBUG = True  
     pdb.run('asyncio.get_event_loop().run_until_complete(main())')
 else:
     asyncio.get_event_loop().run_until_complete(main())
