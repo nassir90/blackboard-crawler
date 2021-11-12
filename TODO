@@ -1,4 +1,3 @@
 Support for downloading single panopto files
 Increast crawling capabilities (e.g. through panopto folders)
-Switch from pythondialog to PyInquirer (cross platform)
 Have an entry for the caledar file (.ics) in the crawl.json file
