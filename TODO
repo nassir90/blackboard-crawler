@@ -1,3 +1,5 @@
 Support for downloading single panopto files
 Increast crawling capabilities (e.g. through panopto folders)
 Have an entry for the caledar file (.ics) in the crawl.json file
+Remove pyppeteer dependency (100megabytes!!!)
+Switch to C
