@@ -108,7 +108,7 @@ async def traverse_list(page: Page, level: str):
             indices["videos"].append({'name' : link_text, 'link' : stream_url})
             await page.goto(content_root)
         elif "webapps" not in link:
-            indices["files"].append(await get_real_filename(link, s_session_id, level))
+            indices["files"].append(get_real_filename(link, s_session_id, level))
         elif header and link not in page.url:
             print(level + "Descending into : '%s'" % link_text)
             await page.goto(link)
@@ -146,7 +146,7 @@ def get_stream_url(link: str, aspxauth: str):
     )
     return json.load(response.data)['Delivery']['Streams'][0]['StreamUrl'] # This may raise KeyError if the JSON returned is invalid
 
-async def get_real_filename(url: str, s_session_id: str, level: str):
+def get_real_filename(url: str, s_session_id: str, level: str):
     if "bbcswebdav" in url:
         try:
             response = http.request(
