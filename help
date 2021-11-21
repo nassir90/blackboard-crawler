@@ -10,7 +10,5 @@
         video -- panopto videos and mp4s
         document -- pdfs, pptx files .etc
         other -- any other type of file
-    Note that these two options are mutually exclusive
-    Also note that they are unimplemented :)
 
 Run with the environment variable DEBUG_BLACKBOARD_CRAWLER set to 1 to run with pdb.
