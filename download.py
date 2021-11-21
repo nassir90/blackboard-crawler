@@ -4,7 +4,7 @@ import os.path
 import re
 import ffmpeg
 import urllib3
-import urllib.parse.unquote as unquote
+from urllib.parse import unquote
 
 current_output_dir = ""
 crawlfile_path = "crawl.json"
@@ -48,13 +48,13 @@ def download_panopto_stream(stream_url: str, link_text: str, level: str):
 
 def download_file(url: str, s_session_id: str, level: str):
     try:
-        response = http.request(url, headers={"Cookie", "s_session_id="+s_session_id, timeout=3)
+        response = http.request("GET", url, headers={"Cookie" : "s_session_id="+s_session_id}, timeout=3)
     except Exception as e:
         print(level + "└" + str(e))
         return
     output_file_path = os.path.basename(unquote(url))
     if not output_file_path:
-        output_file_path = os.path.basename(response.url.strip("/"))
+        output_file_path = os.path.basename(url.strip("/"))
     temp_file_path = output_file_path + ".uncompleted-write"
 
     if not os.path.isfile(output_file_path):
@@ -77,7 +77,7 @@ def download_submodule(submodule: dict, s_session_id: str, level: str, type_choi
             download_panopto_stream(video['link'], video['name'], level + " ")
     for submodule in submodule.get('submodules', []):
         if submodule:
-            download_submodule(submodule, s_session_id, level + " ")
+            download_submodule(submodule, s_session_id, level + " ", type_choices)
 
 def download(crawl_path: str, choices_path: str, s_session_id: str, type_choices: dict):
     choices_file = open(choices_path, "r")

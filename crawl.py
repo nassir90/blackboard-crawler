@@ -34,7 +34,7 @@ async def traverse_module(module_link: str, module_text: str, page: Page, submod
         await page.waitForSelector(SUBMODULE_LINK, timeout=5000)
     except:
         print("John Waldron Moment 🗿")
-        return
+        return module
     
     for submodule_link, submodule_text in await page.JJeval(SUBMODULE_LINK, "links => links.map(link => [link.href, link.innerText])"):
         if re.search(submodule_regex, submodule_text):
