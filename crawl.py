@@ -8,7 +8,7 @@ import traceback
 from pyppeteer import launch
 from pyppeteer.page import Page
 from pyppeteer.network_manager import Response
-import urllib.request
+import urllib3
 import getopt
 
 MODULE_LINK = ".courseListing > li > a"
@@ -21,6 +21,7 @@ PANOPTO_CONTENT = ".content-table a.detail-title"
 PANOPTO_SUBFOLDER = ".subfolder-item"
 
 crawlfile_path = "crawl.json"
+http = urllib3.PoolManager()
 
 async def traverse_module(module_link: str, module_text: str, page: Page, submodule_regex=""):
     module = {"name" : module_text, "link" : module_link, "submodules" : []};
@@ -136,20 +137,25 @@ async def traverse_panopto_list(page: Page, level: str):
 
 def get_stream_url(link: str, aspxauth: str):
     delivery_id = re.search('(?<=id=)[^&]*', link).group(0)
-    request = urllib.request.Request(
+    response = http.request(
+        'GET'
         'https://tcd.cloud.panopto.eu/Panopto/Pages/Viewer/DeliveryInfo.aspx',
-        data=urllib.parse.urlencode({'deliveryId':delivery_id, 'responseType':'json'}).encode()
+        fields={'deliveryId':delivery_id, 'responseType':'json'},
+        headers={"Cookie" : ".ASPXAUTH="+aspxauth},
+        timeout=2
     )
-    request.add_header("Cookie", ".ASPXAUTH="+aspxauth)
-    response = urllib.request.urlopen(request, timeout=2)
-    return json.load(response)['Delivery']['Streams'][0]['StreamUrl'] # This may raise KeyError if the JSON returned is invalid
+    return json.load(response.data)['Delivery']['Streams'][0]['StreamUrl'] # This may raise KeyError if the JSON returned is invalid
 
 async def get_real_filename(url: str, s_session_id: str, level: str):
     if "bbcswebdav" in url:
-        request = urllib.request.Request(url)
-        request.add_header("Cookie", "s_session_id=" + s_session_id)
         try:
-            url = response = urllib.request.urlopen(request, timeout=1).url
+            response = http.request(
+                'GET',
+                url,
+                retries=False,
+                headers={"Cookie":"s_session_id="+s_session_id}
+            )
+            url = "tcd.blackboard.com" + response.headers['Location']
         except Exception as e:
             print(level + str(e))
     
